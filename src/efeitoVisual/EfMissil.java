@@ -1,121 +1,120 @@
 package efeitoVisual;
 
-import java.awt.AlphaComposite;
-import java.awt.Graphics2D;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 
 /**
- *@author Francisco Assis Souza Rodrigues 
+ * @author Francisco Assis Souza Rodrigues
  */
 
 /**
  * Rocket smoke. Use: create object of this class then initialize it with
  * Initialize method.
- * 
+ *
  */
 
 public class EfMissil {
 
-	// Coordinates of this rocket smoke.
-	private int xCoordinate;
-	private int yCoordinate;
+    // Coordinates of this rocket smoke.
+    private int xCoordinate;
+    private int yCoordinate;
 
-	// How long will this smoke be visible.
-	public long smokeLifeTime;
+    // How long will this smoke be visible.
+    public long smokeLifeTime;
 
-	// For calculating how long this smoke exists.
-	public long timeOfCreation;
+    // For calculating how long this smoke exists.
+    public long timeOfCreation;
 
-	// Image of smoke. Image is loaded and set in Game class in LoadContent()
-	// method.
-	public static BufferedImage imgEfeitoMissil;
+    // Image of smoke. Image is loaded and set in Game class in LoadContent()
+    // method.
+    public static BufferedImage imgEfeitoMissil;
 
-	// Smoke will slowly disappear and this holds how much of smoke is visible.
-	public float imageTransparency;
+    // Smoke will slowly disappear and this holds how much of smoke is visible.
+    public float imageTransparency;
 
-	/**
-	 * Initialize object.
-	 * 
-	 * @param xCoordinate
-	 *            X coordinate of this piece of rocket smoke.
-	 * @param yCoordinate
-	 *            Y coordinate of this piece of rocket smoke.
-	 * @param gameTime
-	 *            The current elapsed game time in nanoseconds.
-	 * @param smokeLifeTime
-	 *            How long must the smoke be drawn on a screen?
-	 * @param image
-	 *            Image of rocket smoke.
-	 */
-	public void Initialize(int xCoordinate, int yCoordinate, long gameTime,
-			long smokeLifeTime) {
-		this.timeOfCreation = gameTime;
+    /**
+     * Initialize object.
+     *
+     * @param xCoordinate
+     *            X coordinate of this piece of rocket smoke.
+     * @param yCoordinate
+     *            Y coordinate of this piece of rocket smoke.
+     * @param gameTime
+     *            The current elapsed game time in nanoseconds.
+     * @param smokeLifeTime
+     *            How long must the smoke be drawn on a screen?
+     * @param image
+     *            Image of rocket smoke.
+     */
+    public void Initialize(int xCoordinate, int yCoordinate, long gameTime,
+                           long smokeLifeTime) {
+        this.timeOfCreation = gameTime;
 
-		this.xCoordinate = xCoordinate;
-		this.yCoordinate = yCoordinate;
+        this.xCoordinate = xCoordinate;
+        this.yCoordinate = yCoordinate;
 
-		this.smokeLifeTime = smokeLifeTime;
+        this.smokeLifeTime = smokeLifeTime;
 
-		this.imageTransparency = 1.0f;
-	}
+        this.imageTransparency = 1.0f;
+    }
 
-	/**
-	 * Sets new transparency for rocket smoke image. Older the smoke, more
-	 * transparent is image of smoke.
-	 * 
-	 * @param gameTime
-	 *            The current elapsed game time in nanoseconds.
-	 */
-	public void updateTransparency(long gameTime) {
-		long currentLifeTime = gameTime - timeOfCreation;
+    /**
+     * Sets new transparency for rocket smoke image. Older the smoke, more
+     * transparent is image of smoke.
+     *
+     * @param gameTime
+     *            The current elapsed game time in nanoseconds.
+     */
+    public void updateTransparency(long gameTime) {
+        long currentLifeTime = gameTime - timeOfCreation;
 
-		int currentLTInPercentages = (int) (currentLifeTime * 100 / smokeLifeTime);
-		currentLTInPercentages = 100 - currentLTInPercentages;
-		float rSmokeTransparency = 1.0f * (currentLTInPercentages * 0.01f);
+        int currentLTInPercentages = (int) (currentLifeTime * 100 / smokeLifeTime);
+        currentLTInPercentages = 100 - currentLTInPercentages;
+        float rSmokeTransparency = 1.0f * (currentLTInPercentages * 0.01f);
 
-		if (rSmokeTransparency > 0)
-			imageTransparency = rSmokeTransparency;
-	}
+        if (rSmokeTransparency > 0)
+            imageTransparency = rSmokeTransparency;
+    }
 
-	/**
-	 * Checks if rocket smoke is old enough to remove it.
-	 * 
-	 * @param gameTime
-	 *            The current elapsed game time in nanoseconds.
-	 * @return True if the smoke should be removed, false otherwise.
-	 */
-	public boolean didSmokeDisapper(long gameTime) {
-		long currentLifeTime = gameTime - timeOfCreation;
+    /**
+     * Checks if rocket smoke is old enough to remove it.
+     *
+     * @param gameTime
+     *            The current elapsed game time in nanoseconds.
+     * @return True if the smoke should be removed, false otherwise.
+     */
+    public boolean didSmokeDisapper(long gameTime) {
+        long currentLifeTime = gameTime - timeOfCreation;
 
-		if (currentLifeTime >= smokeLifeTime)
-			return true;
-		else
-			return false;
-	}
+        if (currentLifeTime >= smokeLifeTime)
+            return true;
+        else
+            return false;
+    }
 
-	/**
-	 * Draws a piece of a rocket smoke to the screen.
-	 * 
-	 * @param g2d
-	 *            Graphics2D
-	 */
-	public void Draw(Graphics2D g2d) {
-		g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
-				imageTransparency));
+    /**
+     * Draws a piece of a rocket smoke to the screen.
+     *
+     * @param g2d
+     *            Graphics2D
+     */
+    public void Draw(Graphics2D g2d) {
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
+                imageTransparency));
 
-		// While smoke is disappearing (imageTransparency), it also expanding.
-		// We will multiply smoke image with imageMultiplier so that will slowly
-		// become bigger.
-		float imageMultiplier = 2 - imageTransparency;
-		int newImageWidth = (int) (imgEfeitoMissil.getWidth() * imageMultiplier);
-		int newImageHeight = (int) (imgEfeitoMissil.getHeight() * imageMultiplier);
+        // While smoke is disappearing (imageTransparency), it also expanding.
+        // We will multiply smoke image with imageMultiplier so that will slowly
+        // become bigger.
+        float imageMultiplier = 2 - imageTransparency;
+        int newImageWidth = (int) (imgEfeitoMissil.getWidth() * imageMultiplier);
+        int newImageHeight = (int) (imgEfeitoMissil.getHeight() * imageMultiplier);
 
-		// We will set new y coordinate of smoke so that its stays in center
-		// behind the rocket.
-		int newImageYCoordinate = (int) (imgEfeitoMissil.getHeight() / 2 * (1 - imageTransparency));
-		g2d.drawImage(imgEfeitoMissil, xCoordinate, yCoordinate
-				- newImageYCoordinate, newImageWidth, newImageHeight, null);
+        // We will set new y coordinate of smoke so that its stays in center
+        // behind the rocket.
+        int newImageYCoordinate = (int) (imgEfeitoMissil.getHeight() / 2 * (1 - imageTransparency));
+        g2d.drawImage(imgEfeitoMissil, xCoordinate, yCoordinate
+                - newImageYCoordinate, newImageWidth, newImageHeight, null);
 
-		g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
-	}
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+    }
 }
