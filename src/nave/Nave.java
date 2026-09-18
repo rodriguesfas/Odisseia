@@ -4,6 +4,7 @@ import armasNave.LeiserNave;
 import armasNave.MissilNave;
 import core.Canvas;
 import core.Framework;
+import core.Tempo;
 import efeitoVisual.Efeito;
 import gerenteImagens.GerenteImage;
 
@@ -219,7 +220,8 @@ public class Nave extends Framework {
         // Verifica se foi pressionado && se é a hora de novo Missil e se ainda
         // tem disponivel.
         // Condição dispara Missil
-        if (Canvas.keyboardKeyState(KeyEvent.VK_W)
+        if ((Canvas.keyboardKeyState(KeyEvent.VK_X)
+                || Canvas.keyboardKeyState(KeyEvent.VK_CONTROL))
                 && ((tempoJogo - MissilNave.tempoUltimoMissilCriado) >= MissilNave.tempoEntreNovoMissil)) {
             return true;
         } else
@@ -231,44 +233,39 @@ public class Nave extends Framework {
      * movimento.
      */
     public void Mover() {
+        double s = Tempo.scale();
         // Coordenada X.
-        // (Para a Frente)
-        if (Canvas.keyboardKeyState(KeyEvent.VK_RIGHT))
-            moveVelocidadeX += acelerarVelocidadeX;
-            // (Para Traz)
-        else if (Canvas.keyboardKeyState(KeyEvent.VK_LEFT))
-            moveVelocidadeX -= acelerarVelocidadeX;
-
-            // Para
+        if (Canvas.keyboardKeyState(KeyEvent.VK_RIGHT)
+                || Canvas.keyboardKeyState(KeyEvent.VK_D))
+            moveVelocidadeX += acelerarVelocidadeX * s;
+        else if (Canvas.keyboardKeyState(KeyEvent.VK_LEFT)
+                || Canvas.keyboardKeyState(KeyEvent.VK_A))
+            moveVelocidadeX -= acelerarVelocidadeX * s;
         else if (moveVelocidadeX < 0)
-            moveVelocidadeX += paraVelocidadeX;
-
+            moveVelocidadeX += paraVelocidadeX * s;
         else if (moveVelocidadeX > 0)
-            moveVelocidadeX -= paraVelocidadeX;
+            moveVelocidadeX -= paraVelocidadeX * s;
 
         // Coordenada Y.
-        // (Para Cima)
-        if (Canvas.keyboardKeyState(KeyEvent.VK_UP))
-            setMoveVelocidadeY(getMoveVelocidadeY() - acelerarVelocidadeY);
-
-            // (Para Baixo)
-        else if (Canvas.keyboardKeyState(KeyEvent.VK_DOWN))
-            setMoveVelocidadeY(getMoveVelocidadeY() + acelerarVelocidadeY);
-
-            // Para
+        if (Canvas.keyboardKeyState(KeyEvent.VK_UP)
+                || Canvas.keyboardKeyState(KeyEvent.VK_W))
+            setMoveVelocidadeY(getMoveVelocidadeY() - acelerarVelocidadeY * s);
+        else if (Canvas.keyboardKeyState(KeyEvent.VK_DOWN)
+                || Canvas.keyboardKeyState(KeyEvent.VK_S))
+            setMoveVelocidadeY(getMoveVelocidadeY() + acelerarVelocidadeY * s);
         else if (getMoveVelocidadeY() < 0)
-            setMoveVelocidadeY(getMoveVelocidadeY() + paraVelocidadeY);
+            setMoveVelocidadeY(getMoveVelocidadeY() + paraVelocidadeY * s);
         else if (getMoveVelocidadeY() > 0)
-            setMoveVelocidadeY(getMoveVelocidadeY() - paraVelocidadeY);
+            setMoveVelocidadeY(getMoveVelocidadeY() - paraVelocidadeY * s);
     }
 
     /**
      * Atualiza Posição da Nave, Animação de seus componentes.
      */
     public void Atualizar() {
-        // Move a Nave e seus Componentes
-        xCoordenada += moveVelocidadeX;
-        yCoordenada += getMoveVelocidadeY();
+        double s = Tempo.scale();
+        xCoordenada += moveVelocidadeX * s;
+        yCoordenada += getMoveVelocidadeY() * s;
 
         // Restrinção para o deslocamneto da nave na tela
         if (this.xCoordenada < 1) {

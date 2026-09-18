@@ -1,6 +1,7 @@
 package armasInimigos;
 
 import core.Framework;
+import core.Tempo;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -61,7 +62,7 @@ public class LeiserInimigo {
      * Move Leiser
      */
     public void Atualizar() {
-        xCoordenada += movendoVelocidadeX;
+        xCoordenada += movendoVelocidadeX * Tempo.scale();
     }
 
     /**

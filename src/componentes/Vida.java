@@ -1,6 +1,7 @@
 package componentes;
 
 import core.Framework;
+import core.Tempo;
 import efeitoVisual.Efeito;
 
 import java.awt.*;
@@ -97,7 +98,7 @@ public class Vida {
      */
     public void Atualizar() {
         // Move PowerUp em x de coordenadas.
-        xCoordenada += movimentoVelocidadeX;
+        xCoordenada += movimentoVelocidadeX * Tempo.scale();
 
         //
         animVida.changeCoordinates(xCoordenada + ajustaCoordenadaVidaX,

@@ -28,9 +28,9 @@ java -cp target/classes main.Window
 ## Controles
 
 - Setas ou WASD: mover a nave
-- Espaço / Ctrl: laser
+- Espaço: laser
+- X ou Ctrl: mísseis (quando o power-up estiver ativo)
 - ESC: voltar ao menu
-- Mísseis: liberados por power-up
 
 ## Áudio
 

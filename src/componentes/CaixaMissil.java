@@ -1,6 +1,7 @@
 package componentes;
 
 import core.Framework;
+import core.Tempo;
 import efeitoVisual.Efeito;
 
 import java.awt.*;
@@ -95,7 +96,7 @@ public class CaixaMissil {
      */
     public void Atualizar() {
         // Move CaixaMissil em x de coordenadas.
-        xCoordenada += movimentoVelocidadeX;
+        xCoordenada += movimentoVelocidadeX * Tempo.scale();
 
         //
         animCaixaMissil.changeCoordinates(xCoordenada

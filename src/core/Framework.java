@@ -521,11 +521,15 @@ public class Framework extends Canvas {
 
             switch (estadoJogo) {
 
-                case Jogando:
-                    tempoJogo += System.nanoTime() - tempoDecorrido;
+                case Jogando: {
+                    long agora = System.nanoTime();
+                    long frameDelta = agora - tempoDecorrido;
+                    Tempo.setDeltaNanos(frameDelta);
+                    tempoJogo += frameDelta;
                     game.AtualizaJogo(tempoJogo);
-                    tempoDecorrido = System.nanoTime();
+                    tempoDecorrido = agora;
                     break;
+                }
 
                 case GAMEOVER:
                     if (!gameOverCarregado) {
@@ -769,12 +773,12 @@ public class Framework extends Canvas {
         if (imgDisparaLeiser != null) {
             g2d.drawImage(imgDisparaLeiser, UiScale.sx(120), UiScale.sy(340), iconW, iconH, null);
         }
-        g2d.drawString("Disparar Laser (Espaço / Ctrl)", UiScale.sx(330), UiScale.sy(390));
+        g2d.drawString("Disparar Laser (Espaço)", UiScale.sx(330), UiScale.sy(390));
 
         if (imgDisparaMissil != null) {
             g2d.drawImage(imgDisparaMissil, UiScale.sx(120), UiScale.sy(460), iconW, iconH, null);
         }
-        g2d.drawString("Disparar Mísseis (quando ativo)", UiScale.sx(330), UiScale.sy(510));
+        g2d.drawString("Disparar Mísseis (X / Ctrl, com power-up)", UiScale.sx(330), UiScale.sy(510));
     }
 
     private void drawTelaCreditos(Graphics2D g2d) {

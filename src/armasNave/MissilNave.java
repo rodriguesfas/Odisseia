@@ -1,6 +1,7 @@
 package armasNave;
 
 import core.Framework;
+import core.Tempo;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -65,7 +66,7 @@ public class MissilNave {
      * Move Missil.
      */
     public void Atualizar() {
-        xCoordenada += movendoVelocidadeX;
+        xCoordenada += movendoVelocidadeX * Tempo.scale();
     }
 
     /**

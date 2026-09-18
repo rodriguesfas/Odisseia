@@ -453,21 +453,26 @@ public class Game {
 
 		/* Inimigos */
         criaNovoInimigoUFO(tempoJogo);
+        atualizarInimigosUFO();
         ColisaoNaveComInimigosUFO();
 
         criaNovoInimigoSpikey(tempoJogo);
+        atualizarInimigosSpikey();
         ColisaoNaveComInimigoSpikey();
 
 		/* PowerUP */
         criaNovoPowerUp(tempoJogo);
+        atualizarPowerUps();
         ColisaoNaveComPowerUp();
 
 		/* Vida */
         criaNovaVida(tempoJogo);
+        atualizarVidas();
         ColisaoNaveComVida();
 
 		/* CaixaMissil */
         criaNovaCaixaMissil(tempoJogo);
+        atualizarCaixasMissil();
         ColisaoNaveComCaixaMissil();
 
 		/* Explosões */
@@ -1210,30 +1215,52 @@ public class Game {
      * nave. Verifica se inimigo foi destruído. Verifica se ouve qualquer
      * colisão do inimigo com o jogador.
      */
+
+    private Rectangle boundsNave() {
+        return new Rectangle(nave.xCoordenada, nave.yCoordenada,
+                nave.getImgNave().getWidth(), nave.getImgNave().getHeight());
+    }
+
+    private void atualizarInimigosUFO() {
+        for (InimigoUFO inimigo : ListaInimigosUFO) {
+            inimigo.Atualizar();
+        }
+    }
+
+    private void atualizarInimigosSpikey() {
+        for (InimigoSpikey inimigo : ListaInimigosSpikey) {
+            inimigo.Atualizar();
+        }
+    }
+
+    private void atualizarPowerUps() {
+        for (PowerUpLeiser powerUp : ListaPoewrUpLeiser) {
+            powerUp.Atualizar();
+        }
+    }
+
+    private void atualizarVidas() {
+        for (Vida vida : ListaVida) {
+            vida.Atualizar();
+        }
+    }
+
+    private void atualizarCaixasMissil() {
+        for (CaixaMissil caixa : ListaCaixaMissil) {
+            caixa.Atualizar();
+        }
+    }
+
     private void ColisaoNaveComInimigosUFO() {
         for (int i = ListaInimigosUFO.size() - 1; i >= 0; i--) {
 
             // Instância um objeto da Class InimigoUFO.
             InimigoUFO inimigoUFO = ListaInimigosUFO.get(i);
 
-            // Atualizar InimigoUFO.
-            inimigoUFO.Atualizar();
-
-            // Instância um objeto da class Rectangle, com parametros do objeto
-            // nave.
-            Rectangle naveRectangel = new Rectangle(nave.xCoordenada,
-                    nave.yCoordenada, nave.getImgNave().getWidth(), nave
-                    .getImgNave().getHeight());
-
-            // Instância um objeto da class Rectangle, com parametros do objeto
-            // inimigoUFO.
-            Rectangle inimigoUFORectangel = new Rectangle(
-                    inimigoUFO.xCoordenada, inimigoUFO.yCoordenada,
-                    InimigoUFO.imgInimigoUFO.getWidth(),
-                    InimigoUFO.imgInimigoUFO.getHeight());
+            Rectangle naveRectangel = boundsNave();
 
             // Se a Nave Colidio com o Inimigo.
-            if (naveRectangel.intersects(inimigoUFORectangel)) {
+            if (naveRectangel.intersects(inimigoUFO.bounds())) {
                 // Reduz Saúde da Nave.
                 nave.setSaudeAtual(nave.getSaudeAtual()
                         - inimigoUFO.danoColisao);
@@ -1325,24 +1352,10 @@ public class Game {
             // Intância um objeto da Class InimigoSpeikey.
             InimigoSpikey inimigoSpikey = ListaInimigosSpikey.get(i);
 
-            // Atualizar InimigoSpikey.
-            inimigoSpikey.Atualizar();
-
-            // Instância um objeto da class Rectangle, com parametros do objeto
-            // nave.
-            Rectangle naveRectangel = new Rectangle(nave.xCoordenada,
-                    nave.yCoordenada, nave.getImgNave().getWidth(), nave
-                    .getImgNave().getHeight());
-
-            // Instância um objeto da class Rectangle, com parametros do objeto
-            // inimigoSpikey.
-            Rectangle inimigoSpikeyRectangel = new Rectangle(
-                    inimigoSpikey.xCoordenada, inimigoSpikey.yCoordenada,
-                    InimigoSpikey.imgInimigoSpikey.getWidth(),
-                    InimigoSpikey.imgInimigoSpikey.getHeight());
+            Rectangle naveRectangel = boundsNave();
 
             // Nave Colidio com o InimigoSpikey.
-            if (naveRectangel.intersects(inimigoSpikeyRectangel)) {
+            if (naveRectangel.intersects(inimigoSpikey.bounds())) {
                 // Reduz Saúde da Nave.
                 nave.setSaudeAtual(nave.getSaudeAtual()
                         - inimigoSpikey.danoColisao);
@@ -1455,14 +1468,7 @@ public class Game {
             // Intância um objeto da Class PowerUp.java
             PowerUpLeiser powerUp = ListaPoewrUpLeiser.get(i);
 
-            // Atualizar PowerUp.
-            powerUp.Atualizar();
-
-            // Instância um objeto da class Rectangle, com parametros do objeto
-            // nave.
-            Rectangle naveRectangel = new Rectangle(nave.xCoordenada,
-                    nave.yCoordenada, nave.getImgNave().getWidth(), nave
-                    .getImgNave().getHeight());
+            Rectangle naveRectangel = boundsNave();
 
             // Instância um objeto da class Rectangle, com parametros do objeto
             // powerUp.
@@ -1513,14 +1519,7 @@ public class Game {
             // Intância um objeto da Class Vida.java
             Vida vida = ListaVida.get(i);
 
-            // Atualizar Vida.
-            vida.Atualizar();
-
-            // Instância um objeto da class Rectangle, com parametros do objeto
-            // nave.
-            Rectangle naveRectangel = new Rectangle(nave.xCoordenada,
-                    nave.yCoordenada, nave.getImgNave().getWidth(), nave
-                    .getImgNave().getHeight());
+            Rectangle naveRectangel = boundsNave();
 
             // Instância um objeto da class Rectangle, com parametros do objeto
             // vida.
@@ -1577,14 +1576,7 @@ public class Game {
             // Intância um objeto da Class CaixaMissil.java
             CaixaMissil caixaMissil = ListaCaixaMissil.get(i);
 
-            // Atualizar CaixaMissil.
-            caixaMissil.Atualizar();
-
-            // Instância um objeto da class Rectangle, com parametros do objeto
-            // nave.
-            Rectangle naveRectangel = new Rectangle(nave.xCoordenada,
-                    nave.yCoordenada, nave.getImgNave().getWidth(), nave
-                    .getImgNave().getHeight());
+            Rectangle naveRectangel = boundsNave();
 
             // Instância um objeto da class Rectangle, com parametros do objeto
             // caixaMissil.

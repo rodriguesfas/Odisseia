@@ -1,6 +1,7 @@
 package efeitoVisual;
 
 import core.Framework;
+import core.Tempo;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -46,8 +47,9 @@ public class EfFundoMovel {
         if (xPosicaoImgFundo == null || imgFundo == null) {
             return;
         }
+        double step = velocidadeImgFundo * Tempo.scale();
         for (int i = 0; i < xPosicaoImgFundo.length; i++) {
-            xPosicaoImgFundo[i] += velocidadeImgFundo;
+            xPosicaoImgFundo[i] += step;
 
             if (velocidadeImgFundo < 0) {
                 if (xPosicaoImgFundo[i] <= -drawWidth) {
