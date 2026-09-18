@@ -11,7 +11,9 @@ import efeitoVisual.EfFundoMovel;
 import efeitoVisual.EfLeiser;
 import efeitoVisual.EfMissil;
 import efeitoVisual.Efeito;
+import core.UiScale;
 import gerenteImagens.GerenteImage;
+import gerenteSom.Sons;
 import inimigos.InimigoSpikey;
 import inimigos.InimigoUFO;
 import nave.Nave;
@@ -21,8 +23,9 @@ import tempo.TempoCarregarJogo;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,24 +41,24 @@ public class Game {
 
     /* ###### LISTAS ###### */
     // Lista de armas da Nave.
-    private ArrayList<LeiserNave> ListaLeiserNave;
-    private ArrayList<MissilNave> ListaMissilNave;
+    private List<LeiserNave> ListaLeiserNave;
+    private List<MissilNave> ListaMissilNave;
     // Lista de Inimigos.
-    private ArrayList<InimigoUFO> ListaInimigosUFO;
-    private ArrayList<InimigoSpikey> ListaInimigosSpikey;
+    private List<InimigoUFO> ListaInimigosUFO;
+    private List<InimigoSpikey> ListaInimigosSpikey;
     // Lista das Armas dos Inimigos.
-    private ArrayList<LeiserInimigo> ListaLeiserInimigo;
+    private List<LeiserInimigo> ListaLeiserInimigo;
     // Lista de Componentes.
-    private ArrayList<PowerUpLeiser> ListaPoewrUpLeiser;
-    private ArrayList<Vida> ListaVida;
-    private ArrayList<CaixaMissil> ListaCaixaMissil;
+    private List<PowerUpLeiser> ListaPoewrUpLeiser;
+    private List<Vida> ListaVida;
+    private List<CaixaMissil> ListaCaixaMissil;
     // Lista de Efeitos.
-    private ArrayList<EfMissil> ListaEfeitoMissil;
-    private ArrayList<Efeito> ListaExplosao;
-    private ArrayList<EfLeiser> ListaEfLeiser;
-    private ArrayList<Efeito> ListaEscudo;
-    private ArrayList<Efeito> ListaEfImpacto;
-    private ArrayList<Efeito> ListaEfAdd;
+    private List<EfMissil> ListaEfeitoMissil;
+    private List<Efeito> ListaExplosao;
+    private List<EfLeiser> ListaEfLeiser;
+    private List<Efeito> ListaEscudo;
+    private List<Efeito> ListaEfImpacto;
+    private List<Efeito> ListaEfAdd;
 
     /* ###### IMAGENS ###### */
     private BufferedImage imgCenario;
@@ -142,6 +145,11 @@ public class Game {
     // String.
     String auxTotalPontos;
 
+    /** Garante que recordes só sejam lidos/gravados uma vez por partida. */
+    private boolean recordeProcessado;
+    private String mensagemClassificacao;
+    private BufferedImage imgClassificacao;
+
     /**
      * Construtor da Class.
      */
@@ -185,20 +193,23 @@ public class Game {
         Framework.estadoJogo = Framework.EstadoJogo.CarregandoConteudo;
 
         // Instância Objetos das Listas.
-        ListaLeiserNave = new ArrayList<LeiserNave>();
-        ListaLeiserInimigo = new ArrayList<LeiserInimigo>();
-        ListaMissilNave = new ArrayList<MissilNave>();
-        ListaEfeitoMissil = new ArrayList<EfMissil>();
-        ListaInimigosUFO = new ArrayList<InimigoUFO>();
-        ListaInimigosSpikey = new ArrayList<InimigoSpikey>();
-        ListaExplosao = new ArrayList<Efeito>();
-        ListaEfLeiser = new ArrayList<EfLeiser>();
-        ListaEscudo = new ArrayList<Efeito>();
-        ListaEfImpacto = new ArrayList<Efeito>();
-        ListaPoewrUpLeiser = new ArrayList<PowerUpLeiser>();
-        ListaEfAdd = new ArrayList<Efeito>();
-        ListaVida = new ArrayList<Vida>();
-        ListaCaixaMissil = new ArrayList<CaixaMissil>();
+        ListaLeiserNave = new CopyOnWriteArrayList<>();
+        ListaLeiserInimigo = new CopyOnWriteArrayList<>();
+        ListaMissilNave = new CopyOnWriteArrayList<>();
+        ListaEfeitoMissil = new CopyOnWriteArrayList<>();
+        ListaInimigosUFO = new CopyOnWriteArrayList<>();
+        ListaInimigosSpikey = new CopyOnWriteArrayList<>();
+        ListaExplosao = new CopyOnWriteArrayList<>();
+        ListaEfLeiser = new CopyOnWriteArrayList<>();
+        ListaEscudo = new CopyOnWriteArrayList<>();
+        ListaEfImpacto = new CopyOnWriteArrayList<>();
+        ListaPoewrUpLeiser = new CopyOnWriteArrayList<>();
+        ListaEfAdd = new CopyOnWriteArrayList<>();
+        ListaVida = new CopyOnWriteArrayList<>();
+        ListaCaixaMissil = new CopyOnWriteArrayList<>();
+        recordeProcessado = false;
+        mensagemClassificacao = null;
+        imgClassificacao = null;
 
         // Instância Objetos Imagens em Movimento.
         moverCosmo1 = new EfFundoMovel();
@@ -393,6 +404,10 @@ public class Game {
         gerarCaixaMissil = 0;
         gerarPowerUp = 0;
         gerarVida = 0;
+        ContinueVida = 0;
+        recordeProcessado = false;
+        mensagemClassificacao = null;
+        imgClassificacao = null;
     }
 
     /**
@@ -403,9 +418,12 @@ public class Game {
      */
     public void AtualizaJogo(long tempoJogo) {
         /* Nave */
+        processarContinueOuMorte();
+
         // Verifica se a Nave foi destruída, espera terminar todas as
         // animações e em seguida mostra a Estatistica do Jogo.
-        if (!JogadorVivo() && ListaExplosao.isEmpty()) {
+        if (!isJogadorVivo() && ListaExplosao.isEmpty()) {
+            processarRecordeUmaVez();
             Framework.estadoJogo = Framework.EstadoJogo.GAMEOVER;
             // Se o jogador for destruido não executa o restante do codigo
             // abaixo.
@@ -413,7 +431,7 @@ public class Game {
         }
 
         // Se o jogador (Nave) estiver vivo, Atualiza.
-        if (JogadorVivo()) {
+        if (isJogadorVivo()) {
             verificarDisparoMissil(tempoJogo);
             verificarDisparoLeiserNave(tempoJogo);
             verificarDisparoLeiserInimigo(tempoJogo);
@@ -486,93 +504,98 @@ public class Game {
         moverCosmo2.Draw(g2d);
 
         // Condição para Desenhar Nave.
-        if (JogadorVivo()) {
+        if (isJogadorVivo()) {
             nave.Draw(g2d);
         }
         // Desenha todos os InimigosUFO.
-        for (int i = 0; i < ListaInimigosUFO.size(); i++) {
-            ListaInimigosUFO.get(i).Draw(g2d);
+        for (InimigoUFO inimigo : ListaInimigosUFO) {
+            inimigo.Draw(g2d);
         }
         // Desenha todos os InimigosSpikey.
-        for (int i = 0; i < ListaInimigosSpikey.size(); i++) {
-            ListaInimigosSpikey.get(i).Draw(g2d);
+        for (InimigoSpikey inimigo : ListaInimigosSpikey) {
+            inimigo.Draw(g2d);
         }
         // Desenha todos os Leiser da Nave.
-        for (int i = 0; i < ListaLeiserNave.size(); i++) {
-            ListaLeiserNave.get(i).Draw(g2d);
+        for (LeiserNave leiser : ListaLeiserNave) {
+            leiser.Draw(g2d);
         }
         // Desenha todos os LeiserInimigo.
-        for (int i = 0; i < ListaLeiserInimigo.size(); i++) {
-            ListaLeiserInimigo.get(i).Draw(g2d);
+        for (LeiserInimigo leiser : ListaLeiserInimigo) {
+            leiser.Draw(g2d);
         }
         // Desenha todos os Misseis.
-        for (int i = 0; i < ListaMissilNave.size(); i++) {
-            ListaMissilNave.get(i).Draw(g2d);
+        for (MissilNave missil : ListaMissilNave) {
+            missil.Draw(g2d);
         }
         // Desenha a Fumaça, Efeito de todos os Misseis.
-        for (int i = 0; i < ListaEfeitoMissil.size(); i++) {
-            ListaEfeitoMissil.get(i).Draw(g2d);
+        for (EfMissil efeito : ListaEfeitoMissil) {
+            efeito.Draw(g2d);
         }
         // Desenha todas as EfExplosões.
-        for (int i = 0; i < ListaExplosao.size(); i++) {
-            ListaExplosao.get(i).Draw(g2d);
+        for (Efeito efeito : ListaExplosao) {
+            efeito.Draw(g2d);
         }
         // Desenha todos os EfDisparos.
-        for (int i = 0; i < ListaEfLeiser.size(); i++) {
-            ListaEfLeiser.get(i).Draw(g2d);
+        for (EfLeiser efeito : ListaEfLeiser) {
+            efeito.Draw(g2d);
         }
         // Desenha todos os EfImpacto.
-        for (int i = 0; i < ListaEfImpacto.size(); i++) {
-            ListaEfImpacto.get(i).Draw(g2d);
+        for (Efeito efeito : ListaEfImpacto) {
+            efeito.Draw(g2d);
         }
         // Desenha EfEscudo.
-        for (int i = 0; i < ListaEscudo.size(); i++) {
-            ListaEscudo.get(i).Draw(g2d);
+        for (Efeito efeito : ListaEscudo) {
+            efeito.Draw(g2d);
         }
         // Desenha PowerUp.
-        for (int i = 0; i < ListaPoewrUpLeiser.size(); i++) {
-            ListaPoewrUpLeiser.get(i).Draw(g2d);
+        for (PowerUpLeiser powerUp : ListaPoewrUpLeiser) {
+            powerUp.Draw(g2d);
         }
         // Desenha EfAdd.
-        for (int i = 0; i < ListaEfAdd.size(); i++) {
-            ListaEfAdd.get(i).Draw(g2d);
+        for (Efeito efeito : ListaEfAdd) {
+            efeito.Draw(g2d);
         }
         // Desenha Vida.
-        for (int i = 0; i < ListaVida.size(); i++) {
-            ListaVida.get(i).Draw(g2d);
+        for (Vida vida : ListaVida) {
+            vida.Draw(g2d);
         }
         // Desenha CaixaMissil.
-        for (int i = 0; i < ListaCaixaMissil.size(); i++) {
-            ListaCaixaMissil.get(i).Draw(g2d);
+        for (CaixaMissil caixa : ListaCaixaMissil) {
+            caixa.Draw(g2d);
         }
 
 		/* ########## Desenha na Frente dos Objetos ########### */
 
-        // *Desenha Estatisticas do Jogo*//
-        // Define Fonte
-        g2d.setFont(font);
-        // Define Cor do Texto
+        g2d.setFont(new Font("SansSerif", Font.BOLD, UiScale.su(18)));
         g2d.setColor(Color.WHITE);
 
-        // Desenha Painel por traz dos Objetos.
-        g2d.drawImage(imgPainelTempo, Framework.frameLargura / 2, 6, null);
+        int painelW = imgPainelTempo != null ? UiScale.sw(imgPainelTempo.getWidth()) : UiScale.sw(200);
+        int painelH = imgPainelTempo != null ? UiScale.sh(imgPainelTempo.getHeight()) : UiScale.sh(60);
+        int painelX = Framework.frameLargura / 2 - painelW / 2;
+        if (imgPainelTempo != null) {
+            g2d.drawImage(imgPainelTempo, painelX, UiScale.sy(6), painelW, painelH, null);
+        }
+        g2d.drawString(Tempo(tempoJogo), Framework.frameLargura / 2 - UiScale.sw(20), UiScale.sy(48));
 
-        // Desenha Informação do Tempo Decorrido
-        g2d.drawString(Tempo(tempoJogo), Framework.frameLargura / 2 + 60, 55);
+        if (imgIndicadorPontosGanhos != null) {
+            g2d.drawImage(imgIndicadorPontosGanhos, UiScale.sx(60), UiScale.sy(20),
+                    UiScale.su(imgIndicadorPontosGanhos.getWidth()),
+                    UiScale.su(imgIndicadorPontosGanhos.getHeight()), null);
+        }
+        g2d.drawString("" + ganhaPontos, UiScale.sx(90), UiScale.sy(36));
 
-        // Desenha Informação Imagem e Quantidade Inimigos Destruidos
-        g2d.drawImage(imgIndicadorPontosGanhos, 60, 20, null);
-        g2d.drawString("" + ganhaPontos, 80, 20);
+        if (imgIndicadorPontosPerdidos != null) {
+            g2d.drawImage(imgIndicadorPontosPerdidos, UiScale.sx(150), UiScale.sy(20),
+                    UiScale.su(imgIndicadorPontosPerdidos.getWidth()),
+                    UiScale.su(imgIndicadorPontosPerdidos.getHeight()), null);
+        }
+        g2d.drawString("" + perdePontos, UiScale.sx(180), UiScale.sy(36));
 
-        // Desenha Informação Imagem e Quantidade de Inimigos Não Abatidos
-        g2d.drawImage(imgIndicadorPontosPerdidos, 150, 20, null);
-        g2d.drawString("" + perdePontos, 180, 20);
+        if (imgBarraVida != null) {
+            g2d.drawImage(imgBarraVida, UiScale.sx(10), UiScale.sy(10),
+                    UiScale.sw(imgBarraVida.getWidth()), UiScale.sh(imgBarraVida.getHeight()), null);
+        }
 
-        // Desenha Indicador Barra de Progresso Vida.
-        g2d.drawImage(imgBarraVida, 10, 10, null);
-
-        // Imagem em Movimento.
-        // Desenha o Cosmo na frente.
         moverCosmo1.Draw(g2d);
     }
 
@@ -583,121 +606,35 @@ public class Game {
      * @param gameTime Elapsed game time.
      */
     public void DrawEstatisticas(Graphics2D g2d, long tempoJogo) {
-        // Desenha (Define) Fonte.
-        g2d.setFont(font);
-
-        // Desenha (Define) Cor da Fonte
+        g2d.setFont(new Font("SansSerif", Font.BOLD, UiScale.su(20)));
         g2d.setColor(Color.BLACK);
 
-        // SubTitulo.
-        g2d.drawString("ESTATÍSTICAS", 600, 200);
+        g2d.drawString("ESTATÍSTICAS", UiScale.sx(560), UiScale.sy(200));
+        g2d.drawString("Tempo de Jogo: " + Tempo(tempoJogo), UiScale.sx(500), UiScale.sy(250));
 
-        // Tempo de Jogo.
-        g2d.drawString("Tempo de Jogo: " + Tempo(tempoJogo), 550, 250);
-
-        // Desenha Imagem e Quantidade de Pontos Ganhos (Inimigos Destruidos).
-        g2d.drawImage(imgIndicadorPontosGanhos, 500, 280, null);
-        g2d.drawString("Pontos Ganhos: " + ganhaPontos, 550, 300);
-
-        // Desenha Imagem e Quantidade de Pontos Ganhos (Inimigos Não Abatidos).
-        g2d.drawImage(imgIndicadorPontosPerdidos, 500, 310, null);
-        g2d.drawString("Pontos Perdidos: " + perdePontos, 550, 330);
-
-        // Desenha Total de Pontos.
-        g2d.drawString("Total de Pontos: "
-                + (totalPontos = ganhaPontos - perdePontos), 500, 400);
-
-        /******* RECORDE *******/
-        // Verifica se o total de pontos feito pelo jogador é maior que o 1º
-        // Lugar.
-        if (totalPontos > auxPrimeiroRecorde) {
-
-            // NOVO RECORDE.
-            g2d.drawString("NOVO RECORDE!", 550, 450);
-            g2d.drawImage(imgPrimeiroLugar, 550, 450, null);
-
-            // Conver o valor que está na variavel totalPonto do tipo Inteiro
-            // para String e a variavel auxTotalpontos recebe o valor
-            // convertido.
-            auxTotalPontos = String.valueOf(totalPontos);
-
-            // passa o valor convertido que esta na variavel auxTotalPontos para
-            // primeiroRecoder da Class Recorde.java.
-            recorde.setPrimeiroRecorde(auxTotalPontos);
-            recorde.setSegundoRecorde(String.valueOf(auxPrimeiroRecorde));
-            recorde.setTerceiroRecorde(String.valueOf(auxSegundoRecorde));
-            recorde.setNaoClassificou(String.valueOf(auxTerceiroRecorde));
-
-            // chama o metodo para gravar o recorde.
-            recorde.gravarRecorde();
+        if (imgIndicadorPontosGanhos != null) {
+            g2d.drawImage(imgIndicadorPontosGanhos, UiScale.sx(460), UiScale.sy(280),
+                    UiScale.su(24), UiScale.su(24), null);
         }
+        g2d.drawString("Pontos Ganhos: " + ganhaPontos, UiScale.sx(500), UiScale.sy(300));
 
-        // Verifica se o total de pontos feito pelo jogador é maior que o 2º
-        // Lugar.
-        if ((totalPontos < auxPrimeiroRecorde)
-                && (totalPontos > auxSegundoRecorde)) {
-
-            // NOVO RECORDE.
-            g2d.drawString("Bateu o 2º Lugar!", 550, 450);
-            g2d.drawImage(imgSegundoLugar, 550, 450, null);
-
-            // Conver o valor que está na variavel totalPonto do tipo Inteiro
-            // para String e a variavel auxTotalpontos recebe o valor
-            // convertido.
-            auxTotalPontos = String.valueOf(totalPontos);
-
-            // passa o valor convertido que esta na variavel auxTotalPontos para
-            // primeiroRecoder da Class Recorde.java.
-            recorde.setSegundoRecorde(auxTotalPontos);
-            recorde.setTerceiroRecorde(String.valueOf(auxSegundoRecorde));
-            recorde.setNaoClassificou(String.valueOf(auxTerceiroRecorde));
-
-            // chama o metodo para gravar o recorde.
-            recorde.gravarRecorde();
+        if (imgIndicadorPontosPerdidos != null) {
+            g2d.drawImage(imgIndicadorPontosPerdidos, UiScale.sx(460), UiScale.sy(320),
+                    UiScale.su(24), UiScale.su(24), null);
         }
-        // Verifica se o total de pontos feito pelo jogador é maior que o 3º
-        // Lugar.
-        if ((totalPontos < auxSegundoRecorde)
-                && (totalPontos > auxTerceiroRecorde)) {
+        g2d.drawString("Pontos Perdidos: " + perdePontos, UiScale.sx(500), UiScale.sy(340));
 
-            // NOVO RECORDE.
-            g2d.drawString("Bateu o 3º Lugar!", 550, 450);
-            g2d.drawImage(imgTerceiroLugar, 550, 450, null);
+        totalPontos = ganhaPontos - perdePontos;
+        g2d.drawString("Total de Pontos: " + totalPontos, UiScale.sx(480), UiScale.sy(400));
 
-            // Conver o valor que está na variavel totalPonto do tipo Inteiro
-            // para String e a variavel auxTotalpontos recebe o valor
-            // convertido.
-            auxTotalPontos = String.valueOf(totalPontos);
-
-            // passa o valor convertido que esta na variavel auxTotalPontos para
-            // primeiroRecoder da Class Recorde.java.
-            recorde.setTerceiroRecorde(auxTotalPontos);
-            recorde.setNaoClassificou(String.valueOf(auxTerceiroRecorde));
-
-            // chama o metodo para gravar o recorde.
-            recorde.gravarRecorde();
+        if (mensagemClassificacao != null) {
+            g2d.drawString(mensagemClassificacao, UiScale.sx(500), UiScale.sy(450));
+            if (imgClassificacao != null) {
+                g2d.drawImage(imgClassificacao, UiScale.sx(520), UiScale.sy(470),
+                        UiScale.sw(imgClassificacao.getWidth()),
+                        UiScale.sh(imgClassificacao.getHeight()), null);
+            }
         }
-        // Verifica se o total de pontos é inferior aos Recordes.
-        if ((totalPontos < auxNaoClassificado)
-                && (totalPontos > auxNaoClassificado)) {
-
-            // NOVO RECORDE.
-            g2d.drawString("Não Bateu Nenhum Recorde!", 550, 450);
-            g2d.drawImage(imgNaoClassificado, 550, 450, null);
-
-            // Conver o valor que está na variavel totalPonto do tipo Inteiro
-            // para String e a variavel auxTotalpontos recebe o valor
-            // convertido.
-            auxTotalPontos = String.valueOf(totalPontos);
-
-            // passa o valor convertido que esta na variavel auxTotalPontos para
-            // primeiroRecoder da Class Recorde.java.
-            recorde.setNaoClassificou(auxTotalPontos);
-
-            // chama o metodo para gravar o recorde.
-            recorde.gravarRecorde();
-        }
-
     }
 
     /**
@@ -728,43 +665,82 @@ public class Game {
 
     // * Os métodos para a atualização do jogo.*//
 
+
     /**
-     * Verifique se o jogador está vivo. Se Possue Continue. Se não, definir
-     * status game over.
-     *
-     * @return True (Verdadeiro se o jogador está vivo, false caso destruido.
+     * Indica se a nave ainda tem saúde (sem efeitos colaterais).
      */
-    private boolean JogadorVivo() {
-        // Se a saudeAtual da nave for igual zero e ContinueVida maior zero.
-        if ((nave.getSaudeAtual() <= 0) && (ContinueVida > 0)) {
-            // Seta SaudeAtual da Nave para SaudeInicail.
+    private boolean isJogadorVivo() {
+        return nave.getSaudeAtual() > 0;
+    }
+
+    /**
+     * Aplica continue (recarrega vida). Chamado no update, nunca no Draw.
+     */
+    private void processarContinueOuMorte() {
+        if (nave.getSaudeAtual() > 0) {
+            return;
+        }
+        if (ContinueVida > 0) {
             nave.setSaudeAtual(nave.getSaudeInicial());
-            // Seta BarraSaudeAtual da Nave para BarraSaudeInicial.
             nave.setBarraSaudeAtual(nave.getBarraSaudeInicial());
-            // Reduz Continue Vida.
             ContinueVida--;
         }
+    }
 
-        // Se SaudeAtual da nave igual a zero e ContinueVida igual a zero.
-        if (nave.getSaudeAtual() <= 0 && ContinueVida == 0) {
-
-            /******* RECORDE *******/
-
-            // Chamada do Método Busca o Recodes já armazenados.
-            recorde.exibirRecordes();
-
-            // Variaveis auxiliares armazenam os valor que será recebido dos
-            // recordes salvos, do tipo String e converte para inteiro.
-            auxPrimeiroRecorde = Integer.parseInt(recorde.getPrimeiroRecorde());
-            auxSegundoRecorde = Integer.parseInt(recorde.getSegundoRecorde());
-            auxTerceiroRecorde = Integer.parseInt(recorde.getTerceiroRecorde());
-            auxNaoClassificado = Integer.parseInt(recorde.getNaoClassificou());
-
-            // retorna falso, quando nave destruida.
-            return false;
+    /**
+     * Classifica a pontuação e grava o arquivo de recordes uma única vez
+     * na transição para GAMEOVER.
+     */
+    private void processarRecordeUmaVez() {
+        if (recordeProcessado) {
+            return;
         }
-        // retorna verdadeiro, enquanto a nave estiver intacta.
-        return true;
+        recordeProcessado = true;
+
+        totalPontos = ganhaPontos - perdePontos;
+        carregarRecordesAuxiliares();
+
+        if (totalPontos > auxPrimeiroRecorde) {
+            mensagemClassificacao = "NOVO RECORDE!";
+            imgClassificacao = imgPrimeiroLugar;
+            auxTotalPontos = String.valueOf(totalPontos);
+            recorde.setPrimeiroRecorde(auxTotalPontos);
+            recorde.setSegundoRecorde(String.valueOf(auxPrimeiroRecorde));
+            recorde.setTerceiroRecorde(String.valueOf(auxSegundoRecorde));
+            recorde.setNaoClassificou(String.valueOf(auxTerceiroRecorde));
+            recorde.gravarRecorde();
+        } else if (totalPontos > auxSegundoRecorde) {
+            mensagemClassificacao = "Bateu o 2º Lugar!";
+            imgClassificacao = imgSegundoLugar;
+            auxTotalPontos = String.valueOf(totalPontos);
+            recorde.setSegundoRecorde(auxTotalPontos);
+            recorde.setTerceiroRecorde(String.valueOf(auxSegundoRecorde));
+            recorde.setNaoClassificou(String.valueOf(auxTerceiroRecorde));
+            recorde.gravarRecorde();
+        } else if (totalPontos > auxTerceiroRecorde) {
+            mensagemClassificacao = "Bateu o 3º Lugar!";
+            imgClassificacao = imgTerceiroLugar;
+            auxTotalPontos = String.valueOf(totalPontos);
+            recorde.setTerceiroRecorde(auxTotalPontos);
+            recorde.setNaoClassificou(String.valueOf(auxTerceiroRecorde));
+            recorde.gravarRecorde();
+        } else {
+            mensagemClassificacao = "Não Bateu Nenhum Recorde!";
+            imgClassificacao = imgNaoClassificado;
+            if (totalPontos > auxNaoClassificado) {
+                auxTotalPontos = String.valueOf(totalPontos);
+                recorde.setNaoClassificou(auxTotalPontos);
+                recorde.gravarRecorde();
+            }
+        }
+    }
+
+    private void carregarRecordesAuxiliares() {
+        recorde.exibirRecordes();
+        auxPrimeiroRecorde = Recorde.parsePontuacao(recorde.getPrimeiroRecorde());
+        auxSegundoRecorde = Recorde.parsePontuacao(recorde.getSegundoRecorde());
+        auxTerceiroRecorde = Recorde.parsePontuacao(recorde.getTerceiroRecorde());
+        auxNaoClassificado = Recorde.parsePontuacao(recorde.getNaoClassificou());
     }
 
     /**
@@ -778,6 +754,7 @@ public class Game {
         //
         if (nave.DispararLeiser(tempoJogo) && contPowerUpAdd == 0) {
             LeiserNave.tempoUltimoLeiserCriado = tempoJogo;
+            Sons.laser();
 
             // Instância do objeto da class Leiser.
             LeiserNave leiser = new LeiserNave();
@@ -801,6 +778,7 @@ public class Game {
         //
         if (nave.DispararLeiser(tempoJogo) && contPowerUpAdd == 1) {
             LeiserNave.tempoUltimoLeiserCriado = tempoJogo;
+            Sons.laser();
 
             // Instância do objeto da class Leiser.
             LeiserNave leiser = new LeiserNave();
@@ -830,6 +808,7 @@ public class Game {
         //
         if (nave.DispararLeiser(tempoJogo) && contPowerUpAdd >= 2) {
             LeiserNave.tempoUltimoLeiserCriado = tempoJogo;
+            Sons.laser();
 
             // Instância do objeto da class Leiser.
             LeiserNave leiser = new LeiserNave();
@@ -914,6 +893,7 @@ public class Game {
         if (nave.DispararMissil(tempoJogo) && (ativarMissil == true)) {
 
             MissilNave.tempoUltimoMissilCriado = tempoJogo;
+            Sons.laser();
 
             // Intância dois objetos da mesma Class (Missil.java).
             MissilNave missil = new MissilNave();
@@ -1231,7 +1211,7 @@ public class Game {
      * colisão do inimigo com o jogador.
      */
     private void ColisaoNaveComInimigosUFO() {
-        for (int i = 0; i < ListaInimigosUFO.size(); i++) {
+        for (int i = ListaInimigosUFO.size() - 1; i >= 0; i--) {
 
             // Instância um objeto da Class InimigoUFO.
             InimigoUFO inimigoUFO = ListaInimigosUFO.get(i);
@@ -1310,6 +1290,7 @@ public class Game {
 
                 // Ganha Pontos (Inimigo Destruido).
                 ganhaPontos++;
+                Sons.explodeMini();
 
                 // Conta inimigos mortos para poder liberar powerUp.
                 gerarPowerUp++;
@@ -1339,7 +1320,7 @@ public class Game {
      * colisão do inimigo com o jogador.
      */
     private void ColisaoNaveComInimigoSpikey() {
-        for (int i = 0; i < ListaInimigosSpikey.size(); i++) {
+        for (int i = ListaInimigosSpikey.size() - 1; i >= 0; i--) {
 
             // Intância um objeto da Class InimigoSpeikey.
             InimigoSpikey inimigoSpikey = ListaInimigosSpikey.get(i);
@@ -1440,6 +1421,7 @@ public class Game {
 
                 // Ganha Pontos (quando inimigo é destruido).
                 ganhaPontos++;
+                Sons.explodeMini();
 
                 // Conta inimigos destridos para poder gerar powerUp.
                 gerarPowerUp++;
@@ -1468,7 +1450,7 @@ public class Game {
      * Verifica se powerUp foi intercepetado.
      */
     private void ColisaoNaveComPowerUp() {
-        for (int i = 0; i < ListaPoewrUpLeiser.size(); i++) {
+        for (int i = ListaPoewrUpLeiser.size() - 1; i >= 0; i--) {
 
             // Intância um objeto da Class PowerUp.java
             PowerUpLeiser powerUp = ListaPoewrUpLeiser.get(i);
@@ -1506,6 +1488,7 @@ public class Game {
 
                 // Incrementa PowerUp ao liser da Nave.
                 contPowerUpAdd++;
+                Sons.powerUp();
 
                 // Ganha Pontuação Extra qundo pega powerUp.
                 ganhaPontos = ganhaPontos + 5;
@@ -1525,7 +1508,7 @@ public class Game {
      * Atualizações - Verifica se vida foi intercepetado.
      */
     private void ColisaoNaveComVida() {
-        for (int i = 0; i < ListaVida.size(); i++) {
+        for (int i = ListaVida.size() - 1; i >= 0; i--) {
 
             // Intância um objeto da Class Vida.java
             Vida vida = ListaVida.get(i);
@@ -1564,6 +1547,7 @@ public class Game {
                 if (nave.getSaudeAtual() == 100) {
                     // Incrementa Vida Extra.
                     ContinueVida++;
+                    Sons.powerUp();
                 } else {
                     nave.setSaudeAtual(100);
                 }
@@ -1588,7 +1572,7 @@ public class Game {
      * nave. Verifica se caixaMissil foi intercepetada.
      */
     private void ColisaoNaveComCaixaMissil() {
-        for (int i = 0; i < ListaCaixaMissil.size(); i++) {
+        for (int i = ListaCaixaMissil.size() - 1; i >= 0; i--) {
 
             // Intância um objeto da Class CaixaMissil.java
             CaixaMissil caixaMissil = ListaCaixaMissil.get(i);
@@ -1652,7 +1636,7 @@ public class Game {
      * @param gameTime Game time.
      */
     private void AtualizarLeiserNave(long tempoJogo) {
-        for (int i = 0; i < ListaLeiserNave.size(); i++) {
+        for (int i = ListaLeiserNave.size() - 1; i >= 0; i--) {
 
             // Instância um objeto da Class Leiser.
             LeiserNave leiser = ListaLeiserNave.get(i);
@@ -1683,7 +1667,7 @@ public class Game {
      * @param gameTime Game time.
      */
     private void AtualizarLeiserInimigo(long tempoJogo) {
-        for (int i = 0; i < ListaLeiserInimigo.size(); i++) {
+        for (int i = ListaLeiserInimigo.size() - 1; i >= 0; i--) {
 
             // Instância um objeto da Class Leiser.
             LeiserInimigo leiserInimigo = ListaLeiserInimigo.get(i);
@@ -1715,7 +1699,7 @@ public class Game {
      * @param gameTime Game time.
      */
     private void AtualizarMissilNave(long tempoJogo) {
-        for (int i = 0; i < ListaMissilNave.size(); i++) {
+        for (int i = ListaMissilNave.size() - 1; i >= 0; i--) {
             MissilNave missil = ListaMissilNave.get(i);
 
             // Move o Missil.
@@ -1992,7 +1976,7 @@ public class Game {
      * @param gameTime Game time.
      */
     private void atualizarEfeitoFumacaMissil(long tempoJogo) {
-        for (int i = 0; i < ListaEfeitoMissil.size(); i++) {
+        for (int i = ListaEfeitoMissil.size() - 1; i >= 0; i--) {
             EfMissil efMissil = ListaEfeitoMissil.get(i);
 
             // É hora de remover a Efeito Fumaça Missil.
@@ -2009,7 +1993,7 @@ public class Game {
      * Acabou.
      */
     private void atualizarExplosoes() {
-        for (int i = 0; i < ListaExplosao.size(); i++) {
+        for (int i = ListaExplosao.size() - 1; i >= 0; i--) {
             // Se a animação é mais que removê-lo da lista.
             if (!ListaExplosao.get(i).active)
                 ListaExplosao.remove(i);
@@ -2021,7 +2005,7 @@ public class Game {
      * quando Acabou.
      */
     private void atualizarEfLeiser() {
-        for (int i = 0; i < ListaEfLeiser.size(); i++) {
+        for (int i = ListaEfLeiser.size() - 1; i >= 0; i--) {
             // Se a animação é mais que removê-lo da lista.
             if (!ListaEfLeiser.get(i).active)
                 ListaEfLeiser.remove(i);
@@ -2033,7 +2017,7 @@ public class Game {
      * animação quando Acabou.
      */
     private void atualizarEfImpacto() {
-        for (int i = 0; i < ListaEfImpacto.size(); i++) {
+        for (int i = ListaEfImpacto.size() - 1; i >= 0; i--) {
             // Se a animação é mais que removê-lo da lista.
             if (!ListaEfImpacto.get(i).active)
                 ListaEfImpacto.remove(i);
@@ -2045,7 +2029,7 @@ public class Game {
      * acabar.
      */
     private void atualizarEscudo() {
-        for (int i = 0; i < ListaEscudo.size(); i++) {
+        for (int i = ListaEscudo.size() - 1; i >= 0; i--) {
             // Se a animação é mais que removê-lo da lista.
             if (!ListaEscudo.get(i).active)
                 ListaEscudo.remove(i);
@@ -2057,7 +2041,7 @@ public class Game {
      * acabar.
      */
     private void atualizarEfAdd() {
-        for (int i = 0; i < ListaEfAdd.size(); i++) {
+        for (int i = ListaEfAdd.size() - 1; i >= 0; i--) {
             // Se a animação é mais que removê-lo da lista.
             if (!ListaEfAdd.get(i).active)
                 ListaEfAdd.remove(i);

@@ -2,6 +2,7 @@ package core;
 
 import efeitoVisual.EfFundoMovel;
 import gerenteImagens.GerenteImage;
+import gerenteSom.Sons;
 import jogoOdisseia.Game;
 import recordes.Recorde;
 
@@ -58,8 +59,8 @@ public class Framework extends Canvas {
         Partida, Visualizando, CarregandoConteudo, MenuPrincipal, Opcoes, Jogando, GAMEOVER, Destruido, Recordes, Creditos
     }
 
-    // Estado atual do jogo
-    public static EstadoJogo estadoJogo;
+    // Estado atual do jogo (visível entre a thread do jogo e a EDT)
+    public static volatile EstadoJogo estadoJogo;
 
     // Tempo de jogo decorrido em nanossegundos.
     private long tempoJogo;
@@ -122,6 +123,15 @@ public class Framework extends Canvas {
     boolean botaoMenuSelecionado;
     boolean botaoMenu2Selecionado;
 
+    private boolean menuCarregado;
+    private boolean opcoesCarregado;
+    private boolean recordesCarregado;
+    private boolean creditosCarregado;
+    private boolean gameOverCarregado;
+    private boolean controleCarregado;
+    private boolean gameOverSomTocado;
+    private EstadoJogo estadoAnteriorMusica;
+
     //
     private EfFundoMovel moverCosmo1;
     private EfFundoMovel moverCosmo2;
@@ -156,23 +166,142 @@ public class Framework extends Canvas {
      * real pode ser definido na class Game.java.
      */
     private void Inicializar() {
-        font = new Font("Arial", Font.BOLD, 24);
+        font = new Font("SansSerif", Font.BOLD, UiScale.su(22));
 
-        // Instância os objetos Rectangle (Botões) do Menu Principal.
-        // Coordenada_X, Coordenada_Y, Largura, Altura.
-        botaoIniciarJogo = new Rectangle(550, 350, 150, 25);
-        botaoOpcoes = new Rectangle(550, 380, 150, 25);
-        botaoRecorde = new Rectangle(550, 410, 150, 25);
-        botaoCreditos = new Rectangle(550, 440, 150, 25);
-        botaoSair = new Rectangle(550, 470, 150, 25);
-        botaoMenu = new Rectangle(550, 700, 150, 25);
-        botaoMenu2 = new Rectangle(450, 700, 150, 25);
-        botaoNovoJogo = new Rectangle(700, 700, 150, 25);
+        botaoIniciarJogo = new Rectangle();
+        botaoOpcoes = new Rectangle();
+        botaoRecorde = new Rectangle();
+        botaoCreditos = new Rectangle();
+        botaoSair = new Rectangle();
+        botaoMenu = new Rectangle();
+        botaoMenu2 = new Rectangle();
+        botaoNovoJogo = new Rectangle();
+        atualizarLayout();
 
         // Instância Objetos Imagens em Movimento.
         moverCosmo1 = new EfFundoMovel();
         moverCosmo2 = new EfFundoMovel();
         moverEstrela = new EfFundoMovel();
+    }
+
+    /** Atualiza dimensões da janela e reposiciona botões/áreas clicáveis. */
+    private void atualizarLayout() {
+        int w = getWidth();
+        int h = getHeight();
+        if (w > 1) {
+            frameLargura = w;
+        }
+        if (h > 1) {
+            frameAltura = h;
+        }
+        if (frameLargura <= 1 || frameAltura <= 1) {
+            return;
+        }
+
+        font = new Font("SansSerif", Font.BOLD, UiScale.su(22));
+
+        int bw = UiScale.sw(250);
+        int bh = UiScale.sh(38);
+        int menuX = (frameLargura - bw) / 2;
+        int menuY = UiScale.sy(350);
+        int gap = UiScale.sh(34);
+
+        if (botaoIniciarJogo != null) {
+            botaoIniciarJogo.setBounds(menuX, menuY, bw, bh);
+            botaoOpcoes.setBounds(menuX, menuY + gap, bw, bh);
+            botaoCreditos.setBounds(menuX, menuY + gap * 2, bw, bh);
+            botaoRecorde.setBounds(menuX, menuY + gap * 3, bw, bh);
+            botaoSair.setBounds(menuX, menuY + gap * 4, bw, bh);
+
+            int bottomY = frameAltura - UiScale.sh(80);
+            botaoMenu.setBounds(menuX, bottomY, bw, bh);
+            botaoMenu2.setBounds(menuX - bw / 2 - UiScale.sw(20), bottomY, bw, bh);
+            botaoNovoJogo.setBounds(menuX + bw / 2 + UiScale.sw(20), bottomY, bw, bh);
+        }
+    }
+
+    private void desenharFundo(Graphics2D g2d, BufferedImage img) {
+        if (img == null) {
+            return;
+        }
+        g2d.drawImage(img, 0, 0, frameLargura, frameAltura, null);
+    }
+
+    private void desenharImagemCentralizada(Graphics2D g2d, BufferedImage img, int designY) {
+        if (img == null) {
+            return;
+        }
+        int dw = UiScale.sw(img.getWidth());
+        int dh = UiScale.sh(img.getHeight());
+        int x = (frameLargura - dw) / 2;
+        int y = UiScale.sy(designY);
+        g2d.drawImage(img, x, y, dw, dh, null);
+    }
+
+    private void desenharImagem(Graphics2D g2d, BufferedImage img, int designX, int designY) {
+        if (img == null) {
+            return;
+        }
+        g2d.drawImage(img, UiScale.sx(designX), UiScale.sy(designY),
+                UiScale.sw(img.getWidth()), UiScale.sh(img.getHeight()), null);
+    }
+
+    private void desenharImagem(Graphics2D g2d, BufferedImage img, int designX, int designY,
+                                int designW, int designH) {
+        if (img == null) {
+            return;
+        }
+        g2d.drawImage(img, UiScale.sx(designX), UiScale.sy(designY),
+                UiScale.sw(designW), UiScale.sh(designH), null);
+    }
+
+    private void desenharBotao(Graphics2D g2d, Rectangle botao, String texto, boolean selecionado) {
+        if (botao == null || imgBotao == null) {
+            return;
+        }
+        g2d.drawImage(imgBotao, botao.x, botao.y, botao.width, botao.height, null);
+        Color overlay = selecionado ? new Color(40, 180, 40, 140) : new Color(255, 140, 0, 110);
+        g2d.setColor(overlay);
+        g2d.fillRoundRect(botao.x + 4, botao.y + 4, botao.width - 8, botao.height - 8, 8, 8);
+        g2d.setFont(new Font("SansSerif", Font.BOLD, UiScale.su(18)));
+        g2d.setColor(Color.WHITE);
+        FontMetrics fm = g2d.getFontMetrics();
+        int tx = botao.x + (botao.width - fm.stringWidth(texto)) / 2;
+        int ty = botao.y + (botao.height + fm.getAscent() - fm.getDescent()) / 2;
+        g2d.drawString(texto, tx, ty);
+    }
+
+    private static boolean contem(Rectangle r, int x, int y) {
+        return r != null && r.contains(x, y);
+    }
+
+    private void atualizarMusicaPorEstado() {
+        if (estadoJogo == estadoAnteriorMusica) {
+            return;
+        }
+        estadoAnteriorMusica = estadoJogo;
+        switch (estadoJogo) {
+            case MenuPrincipal:
+            case Opcoes:
+            case Recordes:
+            case Creditos:
+                Sons.musicaMenu();
+                gameOverSomTocado = false;
+                break;
+            case Jogando:
+                Sons.musicaJogo();
+                gameOverSomTocado = false;
+                break;
+            case GAMEOVER:
+                Sons.pararMusica();
+                if (!gameOverSomTocado) {
+                    Sons.gameOver();
+                    gameOverSomTocado = true;
+                }
+                break;
+            default:
+                break;
+        }
     }
 
     /**
@@ -387,6 +516,9 @@ public class Framework extends Canvas {
 
         while (true) {
             comercaTempo = System.nanoTime();
+            atualizarLayout();
+            atualizarMusicaPorEstado();
+
             switch (estadoJogo) {
 
                 case Jogando:
@@ -396,36 +528,37 @@ public class Framework extends Canvas {
                     break;
 
                 case GAMEOVER:
-                    // Carrega os Componentes da Tela GameOver.
-                    CarregarComponentesTelaGameOver();
-                    // ...
+                    if (!gameOverCarregado) {
+                        CarregarComponentesTelaGameOver();
+                        gameOverCarregado = true;
+                    }
                     break;
 
                 case MenuPrincipal:
-                    // ...
+                    if (!menuCarregado) {
+                        CarregarComponentesTelaMenuPrincipal();
+                        menuCarregado = true;
+                    }
                     break;
 
                 case Opcoes:
-                    // Carrega os Componentes da Tela Opções.
-                    CarregarComponentesTelaOpcoes();
-                    // ...
+                    if (!opcoesCarregado) {
+                        CarregarComponentesTelaOpcoes();
+                        opcoesCarregado = true;
+                    }
                     break;
 
                 case CarregandoConteudo:
-                    // Carrega os Componetes da Tela Carregando Conteudo.
-                    CarregarComponentesTelaControle();
-                    // ...
+                    if (!controleCarregado) {
+                        CarregarComponentesTelaControle();
+                        controleCarregado = true;
+                    }
                     break;
 
                 case Partida:
-                    // Define as variáveis ​​e objetos.
                     Inicializar();
-
-                    // Carrega os Componentes da Tela do Menu Principal.
                     CarregarComponentesTelaMenuPrincipal();
-
-                    // Quando os métodos chamados acima estiverem carregados, muda o
-                    // estado do jogo para menuPrincipal.
+                    menuCarregado = true;
                     estadoJogo = EstadoJogo.MenuPrincipal;
                     break;
 
@@ -433,8 +566,6 @@ public class Framework extends Canvas {
                     if (this.getWidth() > 1 && tempoVisualizando > secInNanosec) {
                         frameLargura = this.getWidth();
                         frameAltura = this.getHeight();
-
-                        // Quando atingir tamanho da janela, mudar o estadoJogo.
                         estadoJogo = EstadoJogo.Partida;
                     } else {
                         tempoVisualizando += System.nanoTime()
@@ -444,15 +575,17 @@ public class Framework extends Canvas {
                     break;
 
                 case Recordes:
-                    // Carrega os componentes da Tela Recordes.
-                    CarregarComponentesTelaRecordes();
-                    // ...
+                    if (!recordesCarregado) {
+                        CarregarComponentesTelaRecordes();
+                        recordesCarregado = true;
+                    }
                     break;
 
                 case Creditos:
-                    // Carrega os Componentes da Tela Creditos.
-                    CarregarComponentesTelaCreditos();
-                    // ...
+                    if (!creditosCarregado) {
+                        CarregarComponentesTelaCreditos();
+                        creditosCarregado = true;
+                    }
                     break;
             }
 
@@ -531,11 +664,10 @@ public class Framework extends Canvas {
      * Inicia novo jogo.
      */
     private void novoJogo() {
-        // Define tempoJogo, tempoDecorrido.
         tempoJogo = 0;
         tempoDecorrido = System.nanoTime();
-
-        // Intância o objeto da class (Game.java)
+        gameOverCarregado = false;
+        gameOverSomTocado = false;
         game = new Game();
     }
 
@@ -556,328 +688,127 @@ public class Framework extends Canvas {
     }
 
     private void drawTelaMenuPrincipal(Graphics2D g2d) {
-        // Desenha Imagem do Fundo Menu Principal.
-        g2d.drawImage(imgFundoMenu, 0, 0, Framework.frameLargura,
-                Framework.frameAltura, null);
+        desenharFundo(g2d, imgFundoMenu);
+        desenharFundo(g2d, imgBordaMenu);
+        desenharImagemCentralizada(g2d, imgTituloJogo, 70);
+        if (moverCosmo2 != null) {
+            moverCosmo2.Draw(g2d);
+        }
 
-        // Desenha Imagem Borda do Menu
-        g2d.drawImage(imgBordaMenu, 0, 0, Framework.frameLargura,
-                Framework.frameAltura, null);
+        desenharBotao(g2d, botaoIniciarJogo, "Iniciar Jogo", botaoIniciarJogoSelecionado);
+        desenharBotao(g2d, botaoOpcoes, "Opções", botaoOpcoesSelecionado);
+        desenharBotao(g2d, botaoCreditos, "Créditos", botaoCreditosSelecionado);
+        desenharBotao(g2d, botaoRecorde, "Recordes", botaoRecordeSelecionado);
+        desenharBotao(g2d, botaoSair, "Sair", botaoSairSelecionado);
 
-        // Desenha Titulo do Jogo.
-        g2d.drawImage(imgTituloJogo, 250, 100, null);
-
-        // Imagem em Movimento.
-        // Desenha o Cosmo na frente.
-        moverCosmo2.Draw(g2d);
-
-        // Desenha Tipo de Fonte, tamanho, estilo, que será ultilisada nos
-        // Botões Do Menu Principal.
-        g2d.setFont(new Font("Arial", Font.BOLD, 18));
-
-		/* Desenha Botão Iniciar Jogo. */
-        g2d.drawImage(imgBotao, 498, 344, null);
-        // Condição para mudar de cor.
-        if (!botaoIniciarJogoSelecionado)
-            g2d.setColor(Color.ORANGE);
-        else
-            g2d.setColor(Color.GREEN);
-        g2d.fillRect(botaoIniciarJogo.x, botaoIniciarJogo.y,
-                botaoIniciarJogo.width, botaoIniciarJogo.height);
-        g2d.setColor(Color.WHITE);
-        g2d.drawString("Iniciar Jogo", botaoIniciarJogo.x + 20,
-                botaoIniciarJogo.y + 17);
-
-		/* Desenha Botão Opções. */
-        g2d.drawImage(imgBotao, 498, 374, null);
-        // Condição para mudar de cor.
-        if (!botaoOpcoesSelecionado)
-            g2d.setColor(Color.ORANGE);
-        else
-            g2d.setColor(Color.GREEN);
-        g2d.fillRect(botaoOpcoes.x, botaoOpcoes.y, botaoOpcoes.width,
-                botaoOpcoes.height);
-        g2d.setColor(Color.WHITE);
-        g2d.drawString("Opções", botaoOpcoes.x + 20, botaoOpcoes.y + 17);
-
-		/* Desenha Botão Creditos. */
-        g2d.drawImage(imgBotao, 498, 404, null);
-        // Condição para mudar de cor
-        if (!botaoCreditosSelecionado)
-            g2d.setColor(Color.ORANGE);
-        else
-            g2d.setColor(Color.GREEN);
-        g2d.fillRect(botaoCreditos.x, botaoCreditos.y, botaoCreditos.width,
-                botaoCreditos.height);
-        g2d.setColor(Color.WHITE);
-        g2d.drawString("Créditos", botaoCreditos.x + 20, botaoCreditos.y + 17);
-
-		/* Desenha Botão Recorde. */
-        g2d.drawImage(imgBotao, 498, 434, null);
-        // Condição para mudar de cor
-        if (!botaoRecordeSelecionado)
-            g2d.setColor(Color.ORANGE);
-        else
-            g2d.setColor(Color.GREEN);
-        g2d.fillRect(botaoRecorde.x, botaoRecorde.y, botaoRecorde.width,
-                botaoRecorde.height);
-        g2d.setColor(Color.WHITE);
-        g2d.drawString("Recordes", botaoRecorde.x + 20, botaoRecorde.y + 17);
-
-		/* Desenha Botão Sair */
-        g2d.drawImage(imgBotao, 498, 464, null);
-        // Condição para mudar de cor
-        if (!botaoSairSelecionado)
-            g2d.setColor(Color.ORANGE);
-        else
-            g2d.setColor(Color.GREEN);
-        g2d.fillRect(botaoSair.x, botaoSair.y, botaoSair.width,
-                botaoSair.height);
-        g2d.setColor(Color.WHITE);
-        g2d.drawString("Sair", botaoSair.x + 20, botaoSair.y + 17);
-
-        // Imagem em Movimento.
-        // Desenha o Cosmo na frente.
-        moverCosmo1.Draw(g2d);
+        if (moverCosmo1 != null) {
+            moverCosmo1.Draw(g2d);
+        }
     }
 
-    /**/
     private void drawTelaOpcoes(Graphics2D g2d) {
-        // Desenha Cor da Fonte
+        desenharFundo(g2d, imgFundoOpcoes);
+        desenharFundo(g2d, imgBordaMenu);
         g2d.setFont(font);
-
-        // Desenha Imagem do Fundo Opções.
-        g2d.drawImage(imgFundoOpcoes, 0, 0, Framework.frameLargura,
-                Framework.frameAltura, null);
-
-        // Desenha Imagem da Borda.
-        g2d.drawImage(imgBordaMenu, 0, 0, Framework.frameLargura,
-                Framework.frameAltura, null);
-
-        // Desenha Título Créditos.
-        g2d.drawImage(imgTituloCreditos, 450, 60, null);
-
-		/* Desenha Botão Retornar ao Menu. */
-        g2d.drawImage(imgBotao, 498, 694, null);
-
-        // Condição para mudar de cor do Botão.
-        if (!botaoMenuSelecionado)
-            g2d.setColor(Color.ORANGE);
-        else
-            g2d.setColor(Color.GREEN);
-        g2d.fillRect(botaoMenu.x, botaoMenu.y, botaoMenu.width,
-                botaoMenu.height);
         g2d.setColor(Color.WHITE);
-        g2d.drawString("Menu", botaoMenu.x + 20, botaoMenu.y + 17);
-
-        // Imagem em Movimento.
-        // Desenha o Cosmo na frente.
-        moverCosmo1.Draw(g2d);
+        String titulo = "OPÇÕES";
+        FontMetrics fm = g2d.getFontMetrics();
+        g2d.drawString(titulo, (frameLargura - fm.stringWidth(titulo)) / 2, UiScale.sy(100));
+        g2d.setFont(new Font("SansSerif", Font.PLAIN, UiScale.su(18)));
+        g2d.drawString("ESC — voltar ao menu", UiScale.sx(480), UiScale.sy(280));
+        g2d.drawString("Som: efeitos e música ativos", UiScale.sx(450), UiScale.sy(330));
+        desenharBotao(g2d, botaoMenu, "Menu", botaoMenuSelecionado);
+        if (moverCosmo1 != null) {
+            moverCosmo1.Draw(g2d);
+        }
     }
 
-    /**/
     private void drawTelaRecorde(Graphics2D g2d) {
-        // Desenha Cor da Fonte
-        g2d.setFont(font);
+        desenharFundo(g2d, imgFundoRecorde);
+        desenharFundo(g2d, imgBordaMenu);
+        desenharImagemCentralizada(g2d, imgTituloRecordes, 50);
+        desenharImagem(g2d, imgRecordes, 360, 120);
 
-        // Desenha Imagem do Fundo.
-        g2d.drawImage(imgFundoRecorde, 0, 0, Framework.frameLargura,
-                Framework.frameAltura, null);
-
-        // Desenha Imgem do Cosmo.
-        g2d.drawImage(imgCosmo1, 0, 0, Framework.frameLargura,
-                Framework.frameAltura, null);
-
-        // Desenha Imagem do Cosmo2.
-        g2d.drawImage(imgCosmo2, 0, 0, Framework.frameLargura,
-                Framework.frameAltura, null);
-
-        // Desenha Imagem Borda do Menu
-        g2d.drawImage(imgBordaMenu, 0, 0, Framework.frameLargura,
-                Framework.frameAltura, null);
-
-        // Desenha Fundo Estrelas.
-        g2d.drawImage(imgEstrelas, 0, 0, null);
-
-        // Desenha Título Recodes.
-        g2d.drawImage(imgTituloRecordes, 450, 60, null);
-
-        // Desenha Painel Recordes.
-        g2d.drawImage(imgRecordes, 400, 120, null);
-
-		/* Desenha Botão Retornar ao Menu. */
-        g2d.drawImage(imgBotao, 498, 694, null);
-        // Condição para mudar de cor.
-        if (!botaoMenuSelecionado)
-            g2d.setColor(Color.ORANGE);
-        else
-            g2d.setColor(Color.GREEN);
-        g2d.fillRect(botaoMenu.x, botaoMenu.y, botaoMenu.width,
-                botaoMenu.height);
-        g2d.setColor(Color.WHITE);
-        g2d.drawString("Menu", botaoMenu.x + 20, botaoMenu.y + 17);
-
-        /****** RECORDES ******/
-        // Instancia de um objeto recorde da Class Recorde.java
         Recorde recorde = new Recorde();
-
-        // Chamada do Metodo que Exibe Recorde Armazenados (Salvos).
         recorde.exibirRecordes();
 
-        // Definição da Fonte.
-        g2d.setFont(new Font("Arial", Font.BOLD, 22));
-
-        // Definição Cor da Fonte.
+        g2d.setFont(new Font("SansSerif", Font.BOLD, UiScale.su(22)));
         g2d.setColor(Color.BLACK);
+        g2d.drawString("PONTUAÇÃO", UiScale.sx(450), UiScale.sy(180));
+        g2d.drawString("CLASSIFICAÇÃO", UiScale.sx(680), UiScale.sy(180));
 
-        // Subtitulos.
-        g2d.drawString("PONTUAÇÃO", 450, 180);
-        g2d.drawString("CLASSIFICAÇÃO", 680, 180);
-
-        // Definição da Fonte.
-        g2d.setFont(new Font("Arial", Font.BOLD, 56));
-
-        // Definição Cor da Fonte.
+        g2d.setFont(new Font("SansSerif", Font.BOLD, UiScale.su(48)));
         g2d.setColor(Color.WHITE);
+        g2d.drawString(recorde.getPrimeiroRecorde(), UiScale.sx(450), UiScale.sy(250));
+        g2d.drawString(recorde.getSegundoRecorde(), UiScale.sx(450), UiScale.sy(330));
+        g2d.drawString(recorde.getTerceiroRecorde(), UiScale.sx(450), UiScale.sy(420));
+        g2d.drawString(recorde.getNaoClassificou(), UiScale.sx(450), UiScale.sy(520));
 
-        // Desenha Valores dos Recordes.
-        g2d.drawString(recorde.getPrimeiroRecorde(), 450, 250);
-        g2d.drawString(recorde.getSegundoRecorde(), 450, 330);
-        g2d.drawString(recorde.getTerceiroRecorde(), 450, 420);
-        g2d.drawString(recorde.getNaoClassificou(), 450, 520);
-
-        // Imagem em Movimento.
-        // Desenha o Cosmo na frente.
-        moverCosmo1.Draw(g2d);
+        desenharBotao(g2d, botaoMenu, "Menu", botaoMenuSelecionado);
+        if (moverCosmo1 != null) {
+            moverCosmo1.Draw(g2d);
+        }
     }
 
-    /**/
     private void drawTelaCarregandoConteudo(Graphics2D g2d) {
-        g2d.setFont(new Font("Arial", Font.BOLD, 24));
+        desenharFundo(g2d, imgFundoCarregando);
+        desenharFundo(g2d, imgBordaMenu);
+        desenharImagemCentralizada(g2d, imgTituloControle, 60);
 
-        // Desenha Cor da Fonte.
+        g2d.setFont(new Font("SansSerif", Font.BOLD, UiScale.su(24)));
         g2d.setColor(Color.WHITE);
+        g2d.drawString("Carregando o Jogo...", UiScale.sx(100), UiScale.sy(700));
 
-        // Desenha imagem de fundo.
-        g2d.drawImage(imgFundoCarregando, 0, 0, null);
+        int iconW = UiScale.sw(180);
+        int iconH = UiScale.sh(90);
+        if (imgControleNave != null) {
+            g2d.drawImage(imgControleNave, UiScale.sx(120), UiScale.sy(220), iconW, iconH, null);
+        }
+        g2d.drawString("Movimentar Nave (setas / WASD)", UiScale.sx(330), UiScale.sy(270));
 
-        // Desenha imagem Titulo Controle.
-        g2d.drawImage(imgTituloControle, 200, 120, null);
+        if (imgDisparaLeiser != null) {
+            g2d.drawImage(imgDisparaLeiser, UiScale.sx(120), UiScale.sy(340), iconW, iconH, null);
+        }
+        g2d.drawString("Disparar Laser (Espaço / Ctrl)", UiScale.sx(330), UiScale.sy(390));
 
-        // Desenha Painel Controle.
-        g2d.drawImage(imgPainelControle, 50, 50, null);
-
-        // Menssagem Carregando Jogo.
-        g2d.drawString("Carregando o Jogo..", 100, 600);
-
-        // Imagem e Definição da Tecla Controla Nave.
-        g2d.drawImage(imgControleNave, 100, 200, Framework.frameLargura - 1150,
-                Framework.frameAltura - 650, null);
-        g2d.drawString("Movimentar Nave.", frameLargura / 2 - 350,
-                frameAltura / 2 - 120);
-
-        // Imagem e Definição da Tecla Dispara Leiser.
-        g2d.drawImage(imgDisparaLeiser, 100, 320,
-                Framework.frameLargura - 1000, Framework.frameAltura - 700,
-                null);
-        g2d.drawString("Dispara Laiser", frameLargura / 2 - 230,
-                frameAltura / 2 - 30);
-
-        // Imagem e Definição da Tecla Dispara Missil.
-        g2d.drawImage(imgDisparaMissil, 100, 400,
-                Framework.frameLargura - 1250, Framework.frameAltura - 700,
-                null);
-        g2d.drawString("Dispara Misseis", frameLargura - 1130,
-                frameAltura - 320);
+        if (imgDisparaMissil != null) {
+            g2d.drawImage(imgDisparaMissil, UiScale.sx(120), UiScale.sy(460), iconW, iconH, null);
+        }
+        g2d.drawString("Disparar Mísseis (quando ativo)", UiScale.sx(330), UiScale.sy(510));
     }
 
-    /**/
     private void drawTelaCreditos(Graphics2D g2d) {
-        // Desenha Cor da Fonte
-        g2d.setFont(font);
+        desenharFundo(g2d, imgFundoCreditos);
+        desenharFundo(g2d, imgBordaMenu);
+        desenharImagemCentralizada(g2d, imgTituloCreditos, 50);
+        if (moverEstrela != null) {
+            moverEstrela.Draw(g2d);
+        }
+        if (moverCosmo1 != null) {
+            moverCosmo1.Draw(g2d);
+        }
 
-        // Desenha Imagem de Fundo Crédotos.
-        g2d.drawImage(imgFundoCreditos, 0, 0, Framework.frameLargura,
-                Framework.frameAltura, null);
-
-        // Desenha Imagem Borda
-        g2d.drawImage(imgBordaMenu, 0, 0, Framework.frameLargura,
-                Framework.frameAltura, null);
-
-        // Desenha Título Créditos.
-        g2d.drawImage(imgTituloCreditos, 450, 60, null);
-
-        // Imagem em Movimento.
-        // Desenha o Cosmo na frente.
-        moverEstrela.Draw(g2d);
-        moverCosmo1.Draw(g2d);
-
-		/* Desenha Botão Retornar ao Menu. */
-        g2d.drawImage(imgBotao, 498, 694, null);
-
-        // Condição para mudar de cor do Botão.
-        if (!botaoMenuSelecionado)
-            g2d.setColor(Color.ORANGE);
-        else
-            g2d.setColor(Color.GREEN);
-        g2d.fillRect(botaoMenu.x, botaoMenu.y, botaoMenu.width,
-                botaoMenu.height);
+        g2d.setFont(new Font("SansSerif", Font.BOLD, UiScale.su(22)));
         g2d.setColor(Color.WHITE);
-        g2d.drawString("Menu", botaoMenu.x + 20, botaoMenu.y + 17);
+        g2d.drawString("Francisco Assis Souza Rodrigues", UiScale.sx(400), UiScale.sy(280));
+        g2d.drawString("Versão BETA — Fevereiro/2014", UiScale.sx(430), UiScale.sy(330));
+        g2d.setFont(new Font("SansSerif", Font.PLAIN, UiScale.su(16)));
+        g2d.drawString("www.clubedosgeeks.com.br", UiScale.sx(20), frameAltura - UiScale.sh(20));
 
-        // Desenha URL do site.
-        g2d.drawString("www.clubedosgeeks.com.br", 7, frameAltura - 5);
+        desenharBotao(g2d, botaoMenu, "Menu", botaoMenuSelecionado);
     }
 
-    /**/
     private void drawTelaGameOver(Graphics2D g2d) {
-        // Desenha Cor da Fonte
-        g2d.setColor(Color.BLACK);
+        desenharFundo(g2d, imgFundoGameOver);
+        desenharImagemCentralizada(g2d, imgTituloGameOver, 30);
+        desenharImagem(g2d, imgPainelGameOver, 320, 100, 640, 560);
 
-        // Desenha Imagem de Fundo GAMEOVER.
-        g2d.drawImage(imgFundoGameOver, 0, 0, null);
+        desenharBotao(g2d, botaoMenu2, "Menu", botaoMenu2Selecionado);
+        desenharBotao(g2d, botaoNovoJogo, "Novo Jogo", botaoNovoJogoSelecionado);
 
-        // Desenha Titulo GameOver
-        g2d.drawImage(imgTituloGameOver, 400, 40, null);
-
-        // Desenha Painel GameOver2
-        g2d.drawImage(imgPainelGameOver2, 400, 150, null);
-
-        // Desenha Painel GameOver
-        g2d.drawImage(imgPainelGameOver, 330, 100, 640, 600, null);
-
-        // Desenha Tipo de Fonte, tamanho, estilo, que será ultilisada nos
-        // Botões Do Menu Principal.
-        g2d.setFont(new Font("Arial", Font.BOLD, 18));
-
-		/* Desenha Botão Novo Jogo */
-        g2d.drawImage(imgBotao, 648, 694, null);
-
-        // Condição para mudar de cor do Botão.
-        if (!botaoNovoJogoSelecionado)
-            g2d.setColor(Color.ORANGE);
-        else
-            g2d.setColor(Color.GREEN);
-        g2d.fillRect(botaoNovoJogo.x, botaoNovoJogo.y, botaoNovoJogo.width,
-                botaoNovoJogo.height);
-        g2d.setColor(Color.WHITE);
-        g2d.drawString("Novo Jogo", botaoNovoJogo.x + 20, botaoNovoJogo.y + 17);
-
-		/* Desenha Botão Menu Principal */
-        g2d.drawImage(imgBotao, 398, 694, null);
-
-        // Condição para mudar de cor do Botão.
-        if (!botaoMenu2Selecionado)
-            g2d.setColor(Color.ORANGE);
-        else
-            g2d.setColor(Color.GREEN);
-        g2d.fillRect(botaoMenu2.x, botaoMenu2.y, botaoMenu2.width,
-                botaoMenu2.height);
-        g2d.setColor(Color.WHITE);
-        g2d.drawString("Menu", botaoMenu2.x + 20, botaoMenu2.y + 17);
-
-        // Desenha Estatistica da Class Game.java.
-        game.DrawEstatisticas(g2d, tempoJogo);
+        if (game != null) {
+            game.DrawEstatisticas(g2d, tempoJogo);
+        }
         g2d.setFont(font);
     }
 
@@ -890,8 +821,12 @@ public class Framework extends Canvas {
     @Override
     public void keyReleasedFramework(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-            // Volta para o Menu Principal
-            estadoJogo = EstadoJogo.Visualizando;
+            if (estadoJogo == EstadoJogo.Jogando || estadoJogo == EstadoJogo.GAMEOVER) {
+                Sons.pararMusica();
+                estadoJogo = EstadoJogo.MenuPrincipal;
+            } else if (estadoJogo != EstadoJogo.MenuPrincipal) {
+                estadoJogo = EstadoJogo.MenuPrincipal;
+            }
         }
     }
 
@@ -902,243 +837,76 @@ public class Framework extends Canvas {
      */
     public class MouseHandler extends MouseAdapter {
         @Override
-        // Quando Move o Cusor do Mouse.
         public void mouseMoved(MouseEvent e) {
-            int mouserX = e.getX();
-            int mouserY = e.getY();
+            int x = e.getX();
+            int y = e.getY();
 
             switch (estadoJogo) {
                 case MenuPrincipal:
-                    // Botão Iniciar Jogo.
-                    if (mouserX > botaoIniciarJogo.x
-                            && mouserX < botaoIniciarJogo.x
-                            + botaoIniciarJogo.width
-                            && mouserY > botaoIniciarJogo.y
-                            && mouserY < botaoIniciarJogo.y
-                            + botaoIniciarJogo.height) {
-                        botaoIniciarJogoSelecionado = true;
-                    } else {
-                        botaoIniciarJogoSelecionado = false;
-                    }
-
-                    // Botão Opções.
-                    if (mouserX > botaoOpcoes.x
-                            && mouserX < botaoOpcoes.x + botaoOpcoes.width
-                            && mouserY > botaoOpcoes.y
-                            && mouserY < botaoOpcoes.y + botaoOpcoes.height) {
-                        botaoOpcoesSelecionado = true;
-                    } else {
-                        botaoOpcoesSelecionado = false;
-                    }
-
-                    // Botão Créditos.
-                    if (mouserX > botaoCreditos.x
-                            && mouserX < botaoCreditos.x + botaoCreditos.width
-                            && mouserY > botaoCreditos.y
-                            && mouserY < botaoCreditos.y + botaoCreditos.height) {
-                        botaoCreditosSelecionado = true;
-                    } else {
-                        botaoCreditosSelecionado = false;
-                    }
-
-                    // Botão Recorde.
-                    if (mouserX > botaoRecorde.x
-                            && mouserX < botaoRecorde.x + botaoRecorde.width
-                            && mouserY > botaoRecorde.y
-                            && mouserY < botaoRecorde.y + botaoRecorde.height) {
-                        botaoRecordeSelecionado = true;
-                    } else {
-                        botaoRecordeSelecionado = false;
-                    }
-
-                    // Botão Sair.
-                    if (mouserX > botaoSair.x
-                            && mouserX < botaoSair.x + botaoSair.width
-                            && mouserY > botaoSair.y
-                            && mouserY < botaoSair.y + botaoSair.height) {
-                        botaoSairSelecionado = true;
-                    } else {
-                        botaoSairSelecionado = false;
-                    }
+                    botaoIniciarJogoSelecionado = contem(botaoIniciarJogo, x, y);
+                    botaoOpcoesSelecionado = contem(botaoOpcoes, x, y);
+                    botaoCreditosSelecionado = contem(botaoCreditos, x, y);
+                    botaoRecordeSelecionado = contem(botaoRecorde, x, y);
+                    botaoSairSelecionado = contem(botaoSair, x, y);
                     break;
-
                 case Opcoes:
-                    // Botão Menu.
-                    if (mouserX > botaoMenu.x
-                            && mouserX < botaoMenu.x + botaoMenu.width
-                            && mouserY > botaoMenu.y
-                            && mouserY < botaoMenu.y + botaoMenu.height) {
-                        botaoMenuSelecionado = true;
-                    } else {
-                        botaoMenuSelecionado = false;
-                    }
-                    break;
-
                 case Recordes:
-                    // Botão Menu.
-                    if (mouserX > botaoMenu.x
-                            && mouserX < botaoMenu.x + botaoMenu.width
-                            && mouserY > botaoMenu.y
-                            && mouserY < botaoMenu.y + botaoMenu.height) {
-                        botaoMenuSelecionado = true;
-                    } else {
-                        botaoMenuSelecionado = false;
-                    }
-                    break;
-
                 case Creditos:
-                    // Botão Menu.
-                    if (mouserX > botaoMenu.x
-                            && mouserX < botaoMenu.x + botaoMenu.width
-                            && mouserY > botaoMenu.y
-                            && mouserY < botaoMenu.y + botaoMenu.height) {
-                        botaoMenuSelecionado = true;
-                    } else {
-                        botaoMenuSelecionado = false;
-                    }
+                    botaoMenuSelecionado = contem(botaoMenu, x, y);
                     break;
-
                 case GAMEOVER:
-                    // Botão Menu2.
-                    if (mouserX > botaoMenu2.x
-                            && mouserX < botaoMenu2.x + botaoMenu2.width
-                            && mouserY > botaoMenu2.y
-                            && mouserY < botaoMenu2.y + botaoMenu2.height) {
-                        botaoMenu2Selecionado = true;
-                    } else {
-                        botaoMenu2Selecionado = false;
-                    }
-
-                    // Botão Novo Jogo.
-                    if (mouserX > botaoNovoJogo.x
-                            && mouserX < botaoNovoJogo.x + botaoNovoJogo.width
-                            && mouserY > botaoNovoJogo.y
-                            && mouserY < botaoNovoJogo.y + botaoNovoJogo.height) {
-                        botaoNovoJogoSelecionado = true;
-                    } else {
-                        botaoNovoJogoSelecionado = false;
-                    }
+                    botaoMenu2Selecionado = contem(botaoMenu2, x, y);
+                    botaoNovoJogoSelecionado = contem(botaoNovoJogo, x, y);
+                    break;
+                default:
                     break;
             }
         }
 
-        /**
-         * Método Mouse Pressed (quando precionar o botão do mouse).
-         */
         @Override
         public void mousePressed(MouseEvent e) {
-            int mouseX = e.getX();
-            int mouseY = e.getY();
+            int x = e.getX();
+            int y = e.getY();
 
             switch (estadoJogo) {
                 case MenuPrincipal:
-                    // Condição quando precionar o botão Iniciar Jogo.
-                    if (mouseX > botaoIniciarJogo.x
-                            && mouseX < botaoIniciarJogo.x + botaoIniciarJogo.width
-                            && mouseY > botaoIniciarJogo.y
-                            && mouseY < botaoIniciarJogo.y
-                            + botaoIniciarJogo.height) {
-
-                        // Iniciar Novo Jogo.
+                    if (contem(botaoIniciarJogo, x, y)) {
+                        Sons.menuClick();
                         novoJogo();
-                    }
-
-                    // Condição quando precionar o botão Opções.
-                    if (mouseX > botaoOpcoes.x
-                            && mouseX < botaoOpcoes.x + botaoOpcoes.width
-                            && mouseY > botaoOpcoes.y
-                            && mouseY < botaoOpcoes.y + botaoOpcoes.height) {
-
-                        // Estado do jogo é definido para tela opções.
+                    } else if (contem(botaoOpcoes, x, y)) {
+                        Sons.menuClick();
                         estadoJogo = EstadoJogo.Opcoes;
-                    }
-                    // Condição quando precionar o botão Créditos.
-                    if (mouseX > botaoCreditos.x
-                            && mouseX < botaoCreditos.x + botaoCreditos.width
-                            && mouseY > botaoCreditos.y
-                            && mouseY < botaoCreditos.y + botaoCreditos.height) {
-
-                        // Estado do jogo é definido para tela Créditos.
+                    } else if (contem(botaoCreditos, x, y)) {
+                        Sons.menuClick();
                         estadoJogo = EstadoJogo.Creditos;
-                    }
-                    // Condição quando precionar o botão Recorde.
-                    if (mouseX > botaoRecorde.x
-                            && mouseX < botaoRecorde.x + botaoRecorde.width
-                            && mouseY > botaoRecorde.y
-                            && mouseY < botaoRecorde.y + botaoRecorde.height) {
-
-                        // Estado do jogo é definido para tela Recordes.
+                    } else if (contem(botaoRecorde, x, y)) {
+                        Sons.menuClick();
                         estadoJogo = EstadoJogo.Recordes;
-                    }
-                    // Condição quando precionar o botão sair.
-                    if (mouseX > botaoSair.x
-                            && mouseX < botaoSair.x + botaoSair.width
-                            && mouseY > botaoSair.y
-                            && mouseY < botaoSair.y + botaoSair.height) {
-
-                        // Sair do Jogo.
+                    } else if (contem(botaoSair, x, y)) {
+                        Sons.menuClick();
                         System.exit(0);
                     }
                     break;
-
                 case Opcoes:
-                    // Condição quando precionar o botão Menu.
-                    if (mouseX > botaoMenu.x
-                            && mouseX < botaoMenu.x + botaoMenu.width
-                            && mouseY > botaoMenu.y
-                            && mouseY < botaoMenu.y + botaoMenu.height) {
-
-                        // Estado do jogo é definido para tela Menu Principal.
-                        estadoJogo = EstadoJogo.MenuPrincipal;
-                    }
-                    break;
-
                 case Creditos:
-                    // Condição quando precionar o botão Menu.
-                    if (mouseX > botaoMenu.x
-                            && mouseX < botaoMenu.x + botaoMenu.width
-                            && mouseY > botaoMenu.y
-                            && mouseY < botaoMenu.y + botaoMenu.height) {
-
-                        // Estado do jogo é definido para tela Menu Principal.
-                        estadoJogo = EstadoJogo.MenuPrincipal;
-                    }
-
                 case Recordes:
-                    // Condição quando precionar o botão Menu.
-                    if (mouseX > botaoMenu.x
-                            && mouseX < botaoMenu.x + botaoMenu.width
-                            && mouseY > botaoMenu.y
-                            && mouseY < botaoMenu.y + botaoMenu.height) {
-
-                        // Estado do jogo é definido para tela Menu Principal.
+                    if (contem(botaoMenu, x, y)) {
+                        Sons.menuClick();
                         estadoJogo = EstadoJogo.MenuPrincipal;
                     }
                     break;
-
                 case GAMEOVER:
-                    // Condição quando precionar o botão Menu2.
-                    if (mouseX > botaoMenu2.x
-                            && mouseX < botaoMenu2.x + botaoMenu2.width
-                            && mouseY > botaoMenu2.y
-                            && mouseY < botaoMenu2.y + botaoMenu2.height) {
-
-                        // Estado do jogo é definido para tela Menu Principal.
+                    if (contem(botaoMenu2, x, y)) {
+                        Sons.menuClick();
                         estadoJogo = EstadoJogo.MenuPrincipal;
-                    }
-
-                    // Condição quando precionar o botão NovoJogo.
-                    if (mouseX > botaoNovoJogo.x
-                            && mouseX < botaoNovoJogo.x + botaoNovoJogo.width
-                            && mouseY > botaoNovoJogo.y
-                            && mouseY < botaoNovoJogo.y + botaoNovoJogo.height) {
-
-                        // Reiniciar Jogo.
+                    } else if (contem(botaoNovoJogo, x, y)) {
+                        Sons.menuClick();
                         ReiniciarJogo();
                     }
                     break;
+                default:
+                    break;
             }
-
         }
     }
 

@@ -1,0 +1,29 @@
+# Build
+/bin/
+/target/
+/out/
+/build/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime / local scores (persisted in ~/.odisseia/)
+arquivoRecorde.txt
+
+# Logs
+*.log

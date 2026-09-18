@@ -24,12 +24,12 @@ public abstract class Canvas extends JPanel implements KeyListener,
 
     // Estados Teclado
     // Aqui estão os estados armazenados por teclas do teclado é precionada ou
-    // não.
-    private static boolean[] keyboardState = new boolean[525];
+    // não. KEY_LAST cobre o intervalo válido de KeyEvent.getKeyCode().
+    private static final boolean[] keyboardState = new boolean[KeyEvent.KEY_LAST + 1];
 
     // Mouse
     // Esta os estados de teclas do mouse armazenados - é precionado ou não.
-    private static boolean[] mouseState = new boolean[3];
+    private static final boolean[] mouseState = new boolean[3];
 
     public Canvas() {
         // Usamos buffer duplo para desenhar na tela.
@@ -79,18 +79,27 @@ public abstract class Canvas extends JPanel implements KeyListener,
      *         baixo.
      */
     public static boolean keyboardKeyState(int key) {
+        if (key < 0 || key >= keyboardState.length) {
+            return false;
+        }
         return keyboardState[key];
     }
 
     // Métodos do ouvinte teclado.
     @Override
     public void keyPressed(KeyEvent e) {
-        keyboardState[e.getKeyCode()] = true;
+        int key = e.getKeyCode();
+        if (key >= 0 && key < keyboardState.length) {
+            keyboardState[key] = true;
+        }
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
-        keyboardState[e.getKeyCode()] = false;
+        int key = e.getKeyCode();
+        if (key >= 0 && key < keyboardState.length) {
+            keyboardState[key] = false;
+        }
         keyReleasedFramework(e);
     }
 

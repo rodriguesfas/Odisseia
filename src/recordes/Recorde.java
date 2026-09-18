@@ -1,127 +1,145 @@
 package recordes;
 
-import javax.swing.*;
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author Francisco de Assis de Souza Rodrigues. 27/02/2014
  */
-
 public class Recorde {
 
-    private String primeiroRecorde;
-    private String segundoRecorde;
-    private String terceiroRecorde;
-    private String naoClassificou;
+    private static final Logger LOGGER = Logger.getLogger(Recorde.class.getName());
+    private static final String DEFAULT_SCORE = "0";
 
-    private BufferedReader br;
+    private String primeiroRecorde = DEFAULT_SCORE;
+    private String segundoRecorde = DEFAULT_SCORE;
+    private String terceiroRecorde = DEFAULT_SCORE;
+    private String naoClassificou = DEFAULT_SCORE;
 
     public Recorde() {
     }
 
-    /* Gravar Recorede */
-    public void gravarRecorde() {
-        try {
-            /*
-			 * Instância de um Objeto da Class Java(PrintWriter
-			 * "para Gravação do Arquivo"). Define o nome e a extensão do
-			 * arquivo que deseja criar.
-			 */
-            PrintWriter out = new PrintWriter("arquivoRecorde" + ".txt");
-
-			/* Captura os valores */
-            out.println(getPrimeiroRecorde());
-            out.println(getSegundoRecorde());
-            out.println(getTerceiroRecorde());
-            out.println(getNaoClassificou());
-
-			/* Fecha Conexão */
-            out.close();
-
-        } catch (IOException Erro) {
-            JOptionPane.showMessageDialog(null,
-                    "Erro! Não foi Possivel salvar seu Recorde." + Erro);
-        }
-
-    }
-
-    /**/
-    public void exibirRecordes() {
-        try {
-			/*
-			 * Instância de um Objeto da Class java(BufferedReader
-			 * "Para Leitura do Arquivo"), que Instância um Objeto da class
-			 * java(FileReader) referenciando o arquivo a ser aberto.
-			 */
-            br = new BufferedReader(new FileReader("arquivoRecorde" + ".txt"));
-
-			/* Ler o conteúdo do arquivo e repassa para as variaveis */
-            setPrimeiroRecorde(br.readLine());
-            setSegundoRecorde(br.readLine());
-            setTerceiroRecorde(br.readLine());
-            setNaoClassificou(br.readLine());
-
-        } catch (IOException Erro) {
-            JOptionPane.showMessageDialog(null, "Erro! ao Acessar Recordes."
-                    + Erro);
-        }
-    }
-
     /**
-     * @return the primeiroRecorde
+     * Arquivo de recordes em {@code ~/.odisseia/arquivoRecorde.txt},
+     * independente do diretório de trabalho.
      */
+    public static Path caminhoArquivo() {
+        Path dir = Path.of(System.getProperty("user.home"), ".odisseia");
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Não foi possível criar o diretório de recordes.", e);
+        }
+        return dir.resolve("arquivoRecorde.txt");
+    }
+
+    public void gravarRecorde() {
+        Path arquivo = caminhoArquivo();
+        try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(arquivo, StandardCharsets.UTF_8))) {
+            out.println(safe(getPrimeiroRecorde()));
+            out.println(safe(getSegundoRecorde()));
+            out.println(safe(getTerceiroRecorde()));
+            out.println(safe(getNaoClassificou()));
+        } catch (IOException erro) {
+            LOGGER.log(Level.WARNING, "Não foi possível salvar o recorde em " + arquivo, erro);
+        }
+    }
+
+    public void exibirRecordes() {
+        Path arquivo = caminhoArquivo();
+        if (!Files.isRegularFile(arquivo)) {
+            migrarArquivoLegadoSeExistir(arquivo);
+        }
+
+        if (!Files.isRegularFile(arquivo)) {
+            setPrimeiroRecorde(DEFAULT_SCORE);
+            setSegundoRecorde(DEFAULT_SCORE);
+            setTerceiroRecorde(DEFAULT_SCORE);
+            setNaoClassificou(DEFAULT_SCORE);
+            return;
+        }
+
+        try (BufferedReader br = Files.newBufferedReader(arquivo, StandardCharsets.UTF_8)) {
+            setPrimeiroRecorde(lerLinhaOuPadrao(br));
+            setSegundoRecorde(lerLinhaOuPadrao(br));
+            setTerceiroRecorde(lerLinhaOuPadrao(br));
+            setNaoClassificou(lerLinhaOuPadrao(br));
+        } catch (IOException erro) {
+            LOGGER.log(Level.WARNING, "Erro ao ler recordes em " + arquivo, erro);
+            setPrimeiroRecorde(DEFAULT_SCORE);
+            setSegundoRecorde(DEFAULT_SCORE);
+            setTerceiroRecorde(DEFAULT_SCORE);
+            setNaoClassificou(DEFAULT_SCORE);
+        }
+    }
+
+    /** Converte texto do arquivo em inteiro; valores inválidos viram 0. */
+    public static int parsePontuacao(String valor) {
+        if (valor == null || valor.isBlank()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(valor.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private static String lerLinhaOuPadrao(BufferedReader br) throws IOException {
+        String linha = br.readLine();
+        return (linha == null || linha.isBlank()) ? DEFAULT_SCORE : linha.trim();
+    }
+
+    private static String safe(String valor) {
+        return (valor == null || valor.isBlank()) ? DEFAULT_SCORE : valor;
+    }
+
+    /** Migra {@code arquivoRecorde.txt} do CWD antigo, se existir. */
+    private static void migrarArquivoLegadoSeExistir(Path destino) {
+        Path legado = Path.of("arquivoRecorde.txt");
+        if (Files.isRegularFile(legado)) {
+            try {
+                Files.copy(legado, destino);
+            } catch (IOException e) {
+                LOGGER.log(Level.FINE, "Falha ao migrar arquivo de recordes legado.", e);
+            }
+        }
+    }
+
     public String getPrimeiroRecorde() {
         return primeiroRecorde;
     }
 
-    /**
-     * @param primeiroRecorde the primeiroRecorde to set
-     */
     public void setPrimeiroRecorde(String primeiroRecorde) {
         this.primeiroRecorde = primeiroRecorde;
     }
 
-    /**
-     * @return the segundoRecorde
-     */
     public String getSegundoRecorde() {
         return segundoRecorde;
     }
 
-    /**
-     * @param segundoRecorde the segundoRecorde to set
-     */
     public void setSegundoRecorde(String segundoRecorde) {
         this.segundoRecorde = segundoRecorde;
     }
 
-    /**
-     * @return the terceiroRecorde
-     */
     public String getTerceiroRecorde() {
         return terceiroRecorde;
     }
 
-    /**
-     * @param terceiroRecorde the terceiroRecorde to set
-     */
     public void setTerceiroRecorde(String terceiroRecorde) {
         this.terceiroRecorde = terceiroRecorde;
     }
 
-    /**
-     * @return the naoClassificou
-     */
     public String getNaoClassificou() {
         return naoClassificou;
     }
 
-    /**
-     * @param naoClassificou the naoClassificou to set
-     */
     public void setNaoClassificou(String naoClassificou) {
         this.naoClassificou = naoClassificou;
     }
