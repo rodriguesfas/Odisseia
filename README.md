@@ -9,6 +9,14 @@ Jogo de nave desenvolvido em Java (Swing).
 
 ## Compilar e executar
 
+Com Make (recomendado):
+
+```bash
+make up          # recompila sempre e sobe o jogo
+make run         # recompila só se o código mudou
+make clean
+```
+
 Com Maven:
 
 ```bash
@@ -20,8 +28,8 @@ Sem Maven (javac):
 
 ```bash
 mkdir -p target/classes
-javac -d target/classes $(find src -name '*.java')
-cp -r resources/* target/classes/
+javac --release 21 -d target/classes $(find src -name '*.java')
+cp -a resources/. target/classes/
 java -cp target/classes main.Window
 ```
 
